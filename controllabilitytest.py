@@ -30,7 +30,7 @@ class  ControllabilityTest:
             self.buffer.add((state, action, reward, next_state, done))
             state = self.env.reset() if done else next_state
 
-    def backward_expand(self, neighbor: NeighbourSet) -> List(NeighbourSet):
+    def backward_expand(self, neighbor: NeighbourSet) -> List[NeighbourSet]:
         '''
         :param neighbor (NeighbourSet): the neighbor set to be expanded
         :return (List[NeighbourSet]): the expanded neighbor set
@@ -53,29 +53,30 @@ class  ControllabilityTest:
                             transitions[3], 
                             neighbor.centered_state
                         )
-                    ) / self.lipschitz_fx(neighbor.centered_state, transitions[0])
+                    ) / self.lipschitz_fx(transitions[0])
                 )
-            ) 
-            for transitions in self.buffer.buffer[states_in_buffer_index]
+            )for transitions in [self.buffer.buffer[i] for i in states_in_buffer_index]
         ]
     
-    def get_epsilon_controllable_set(self, state: np.ndarray, epsilon: float):
+    def get_epsilon_controllable_set(self, state: np.ndarray):
         '''
         :param state (np.ndarray): the state to be tested
         :param epsilon (float): the epsilon value
         '''
-        self.epsilon_controllable_list.append(NeighbourSet(state, epsilon))
+        assert len(self.epsilon_controllable_list) == 0, "The epsilon controllable list is not empty!"
+        self.epsilon_controllable_list.append(NeighbourSet(state, self.epsilon))
         # until all the neighbor sets are visited
         while not all([neighbor.visited for neighbor in self.epsilon_controllable_list]):
-            for neighbor in self.epsilon_controllable_list and not neighbor.visited:
-                expand_neighbor_list = self.backward_expand(neighbor)
-                for expand_neighbor in expand_neighbor_list:                    
-                    is_repeat, idx = self.check_expand_neighbor_state_in_epsilon_controllable_list(expand_neighbor)
-                    if is_repeat:
-                        if expand_neighbor.radius > self.epsilon_controllable_list[idx].radius:
-                            self.epsilon_controllable_list[idx].radius = expand_neighbor.radius
-                    else:
-                        self.epsilon_controllable_list.append(expand_neighbor)
+            for neighbor in self.epsilon_controllable_list:
+                if not neighbor.visited:
+                    expand_neighbor_list = self.backward_expand(neighbor)
+                    for expand_neighbor in expand_neighbor_list:                    
+                        is_repeat, idx = self.check_expand_neighbor_state_in_epsilon_controllable_list(expand_neighbor)
+                        if is_repeat:
+                            if expand_neighbor.radius > self.epsilon_controllable_list[idx].radius:
+                                self.epsilon_controllable_list[idx].radius = expand_neighbor.radius
+                        else:
+                            self.epsilon_controllable_list.append(expand_neighbor)
 
     @staticmethod
     def distance(state1: np.ndarray, state2: np.ndarray) -> float:
