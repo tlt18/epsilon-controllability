@@ -13,7 +13,7 @@ class NeighbourSet:
     visited: bool = False
 
 class  ControllabilityTest:
-    def __init__(self, env: gym.Env , buffer: Buffer, num_sample: int = 10000, epsilon: float = 0.05, lipschitz_confidence: float = np.inf):
+    def __init__(self, env: gym.Env , buffer: Buffer, num_sample: int = 10000, epsilon: float = 0.05, lipschitz_confidence: float = 1):
         self.env = env
         self.buffer = buffer
         self.num_sample = num_sample
@@ -66,10 +66,13 @@ class  ControllabilityTest:
         assert len(self.epsilon_controllable_list) == 0, "The epsilon controllable list is not empty!"
         self.epsilon_controllable_list.append(NeighbourSet(state, self.epsilon))
         # until all the neighbor sets are visited
+        count = 0
         while not all([neighbor.visited for neighbor in self.epsilon_controllable_list]):
             for neighbor in self.epsilon_controllable_list:
                 if not neighbor.visited:
                     expand_neighbor_list = self.backward_expand(neighbor)
+                    count += 1
+                    print("count: {}, expand_neighbor_list: {}, epsilon_controllable_list: {}".format(count, len(expand_neighbor_list), len(self.epsilon_controllable_list)))
                     for expand_neighbor in expand_neighbor_list:                    
                         is_repeat, idx = self.check_expand_neighbor_state_in_epsilon_controllable_list(expand_neighbor)
                         if is_repeat:
@@ -100,7 +103,7 @@ class  ControllabilityTest:
             if self.distance(transition[0], state) <= self.lipschitz_confidence
         ]
         # TODO: implement the lipschitz constant of the dynamics function
-        return 1/2
+        return 0.8
 
     def clear(self):
         self.epsilon_controllable_list = []

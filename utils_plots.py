@@ -10,6 +10,7 @@ def plot_epsilon_controllable_list(epsilon_controllable_list: List[NeighbourSet]
         print("centered_state: {}, radius: {}".format(neighbor.centered_state, neighbor.radius))
         circle = plt.Circle(neighbor.centered_state, neighbor.radius, color='r', fill=False)
         plt.gca().add_patch(circle)
+    plt.axis('equal')
     plt.xlabel("state")
     plt.ylabel("state")
     plt.savefig(save_path)
