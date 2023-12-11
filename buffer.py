@@ -12,6 +12,7 @@ class Buffer:
         self.buffer_idx = 0
 
     def add(self, transition: Tuple[np.ndarray, np.ndarray, float, np.ndarray, bool]):
+        # transition: (state, action, reward, next_state, done)
         self.buffer.append(transition)
 
     def sample(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
