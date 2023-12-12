@@ -11,7 +11,7 @@ class SimpleOCPwithControl(gym.Env):
         self.action_space = spaces.Box(low=-0.2, high=0.2, shape=(1, ), dtype=np.float32)
         low = np.array([-1.0, -1.0], dtype=np.float32)
         high = np.array([1.0, 1.0], dtype=np.float32)
-        self.observation_space = spaces.Box(low=low, high=high, shape=(2, ))
+        self.observation_space = spaces.Box(low=low, high=high, shape=(2, ), dtype=np.float32)
         self.max_step = max_step
         self.seed(seed)
 
@@ -23,13 +23,13 @@ class SimpleOCPwithControl(gym.Env):
         return self.state, reward, done, {}
     
     def done(self):
-        if self.state not in self.observation_space:
-            return True
-        else:
+        if self.observation_space.contains(self.state):
             return False
+        else:
+            return True
 
     def get_next_state(self, action):
-        return np.array([1/2 * self.state[0] + action[0], 1/2 * self.state[1]])
+        return np.array([1/2 * self.state[0] + action[0], 1/2 * self.state[1]], dtype = np.float32)
 
     def reset(self, init_state: Optional[np.ndarray] = None):
         self.step_count = 0
