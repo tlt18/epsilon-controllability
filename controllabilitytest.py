@@ -1,10 +1,12 @@
 # controllability test for dynamics systems in datative setting
 from dataclasses import dataclass
-import numpy as np
+from typing import List, Tuple
+
 import gym
+import numpy as np
 
 from buffer import Buffer
-from typing import List, Optional, Tuple
+from utils_plots import PlotUtils
 
 @dataclass
 class NeighbourSet:
@@ -20,11 +22,11 @@ class  ControllabilityTest:
         self.epsilon = epsilon
         self.lipschitz_confidence = lipschitz_confidence
         self.epsilon_controllable_list: List[NeighbourSet] = []
+        self.plot_utils = PlotUtils(self.env.observation_space, self.env.action_space)
         
-    def sample(self, num_sample: Optional[int] = None):
+    def sample(self):
         state = self.env.reset()
-        num_sample = self.num_sample if num_sample is None else num_sample
-        for step in range(num_sample):
+        for step in range(self.num_sample):
             action = self.env.action_space.sample()
             next_state, reward, done, _ = self.env.step(action)
             self.buffer.add((state, action, reward, next_state, done))
@@ -61,7 +63,6 @@ class  ControllabilityTest:
     def get_epsilon_controllable_set(self, state: np.ndarray):
         '''
         :param state (np.ndarray): the state to be tested
-        :param epsilon (float): the epsilon value
         '''
         assert len(self.epsilon_controllable_list) == 0, "The epsilon controllable list is not empty!"
         self.epsilon_controllable_list.append(NeighbourSet(state, self.epsilon))
@@ -69,11 +70,20 @@ class  ControllabilityTest:
         count = 0
         while not all([neighbor.visited for neighbor in self.epsilon_controllable_list]):
             for neighbor in self.epsilon_controllable_list:
+                # TODO: more detailed implementation  
+                if len(self.epsilon_controllable_list) == self.num_sample:
+                    return
                 if not neighbor.visited:
                     expand_neighbor_list = self.backward_expand(neighbor)
                     count += 1
                     print("count: {}, expand_neighbor_list: {}, epsilon_controllable_list: {}".format(count, len(expand_neighbor_list), len(self.epsilon_controllable_list)))
-                    for expand_neighbor in expand_neighbor_list:                    
+                    for expand_neighbor in expand_neighbor_list:
+                        self.plot_utils.plot_backward(
+                            expand_neighbor.centered_state, 
+                            expand_neighbor.radius, 
+                            neighbor.centered_state, 
+                            neighbor.radius
+                        )
                         is_repeat, idx = self.check_expand_neighbor_state_in_epsilon_controllable_list(expand_neighbor)
                         if is_repeat:
                             if expand_neighbor.radius > self.epsilon_controllable_list[idx].radius:
@@ -108,7 +118,6 @@ class  ControllabilityTest:
     def clear(self):
         self.epsilon_controllable_list = []
         self.buffer.clear()
-
 
     def seed(self, seed=None):
         self.env.seed(seed)

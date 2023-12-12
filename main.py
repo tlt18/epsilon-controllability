@@ -2,7 +2,7 @@ from controllabilitytest import ControllabilityTest
 from buffer import Buffer
 from env import SimpleOCPwithControl, SimpleOCPwoControl
 
-from utils_plots import plot_epsilon_controllable_list
+# from utils_plots import plot_epsilon_controllable_list
 
 import numpy as np
 import time
@@ -25,5 +25,4 @@ if __name__ == "__main__":
     time_calonestep = time.time() - time_start - time_sample
     print("time for calculating epsilon controllable set: {:.4f}s".format(time_calonestep))
 
-    if test.epsilon_controllable_list != []:
-        plot_epsilon_controllable_list(test.epsilon_controllable_list, "./figs/test.png")
+    # plot_epsilon_controllable_list(test.epsilon_controllable_list, "./figs/test.png")
