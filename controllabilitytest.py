@@ -23,6 +23,11 @@ class  ControllabilityTest:
         self.epsilon = epsilon
         self.lipschitz_confidence = lipschitz_confidence
         self.epsilon_controllable_list: List[NeighbourSet] = []
+        self.plot_utils = PlotUtils(
+            obs_space = self.env.observation_space, 
+            action_space = self.env.action_space,
+            orgin_radius = self.epsilon,
+        )
         
     def sample(self):
         state = self.env.reset()
@@ -76,12 +81,7 @@ class  ControllabilityTest:
         assert len(self.epsilon_controllable_list) == 0, "The epsilon controllable list is not empty!"
         count = 0
         fig, ax = None, None
-        self.plot_utils = PlotUtils(
-            obs_space = self.env.observation_space, 
-            action_space = self.env.action_space,
-            orgin_state = state, 
-            orgin_radius = self.epsilon,
-        )
+        self.plot_utils.set_orgin_state(state)
 
         self.epsilon_controllable_list.append(NeighbourSet(state, self.epsilon))
         # until all the neighbor sets are visited
