@@ -55,5 +55,5 @@ class PlotUtils():
         ax.set_ylabel("state2")
         # save figure
         self.backward_counter += 1
-        plt.savefig(os.path.join(FILEPATH, "./figs/epsilon_controllable_list.png"))
+        plt.savefig(os.path.join(FILEPATH, f"./figs/epsilon_controllable_list_{self.backward_counter}.png"))
         return fig, ax

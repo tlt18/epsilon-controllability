@@ -74,6 +74,8 @@ class  ControllabilityTest:
         '''
         assert len(self.epsilon_controllable_list) == 0, "The epsilon controllable list is not empty!"
         count = 0
+        repeat_count = 0
+        plot_flag = False
         fig, ax = None, None
         self.plot_utils = PlotUtils(
             obs_space = self.env.observation_space, 
@@ -91,24 +93,35 @@ class  ControllabilityTest:
                     return
                 if not neighbor.visited:
                     expand_neighbor_list, last_neighbor_list = self.backward_expand(neighbor)
-                    count += 1
-                    print("count: {}, expand_neighbor_list: {}, epsilon_controllable_list: {}"
-                          .format(count, len(expand_neighbor_list), len(self.epsilon_controllable_list)))
                     for idx_expland, expand_neighbor in enumerate(expand_neighbor_list):
-                        fig, ax = self.plot_utils.plot_backward(
-                            expand_neighbor.centered_state, 
-                            expand_neighbor.radius, 
-                            last_neighbor_list[idx_expland].centered_state, 
-                            last_neighbor_list[idx_expland].radius,
-                            fig=fig,
-                            ax=ax
-                        )
                         is_repeat, idx_list = self.check_expand_neighbor_state_in_epsilon_controllable_list(expand_neighbor)
                         if is_repeat:
                             if expand_neighbor.radius > self.epsilon_controllable_list[idx_list].radius:
+                                print("same state has been visited, original state: {}, radius: {}, new state: {}, radius: {}".format(
+                                    self.epsilon_controllable_list[idx_list].centered_state,
+                                    self.epsilon_controllable_list[idx_list].radius,
+                                    expand_neighbor.centered_state,
+                                    expand_neighbor.radius,
+                                ))
                                 self.epsilon_controllable_list[idx_list].radius = expand_neighbor.radius
+                                self.epsilon_controllable_list[idx_list].visited = False
+                                repeat_count += 1
+                                plot_flag = True
                         else:
                             self.epsilon_controllable_list.append(expand_neighbor)
+                            plot_flag = True
+                        if plot_flag:
+                            fig, ax = self.plot_utils.plot_backward(
+                                expand_neighbor.centered_state, 
+                                expand_neighbor.radius, 
+                                last_neighbor_list[idx_expland].centered_state, 
+                                last_neighbor_list[idx_expland].radius,
+                                fig=fig,
+                                ax=ax
+                            )
+                    count += 1
+                    print("expand count: {}, new_neighbor_num: {}, total_controllable_num: {}, unvisited_num: {}"
+                        .format(count, len(expand_neighbor_list), len(self.epsilon_controllable_list), len(self.epsilon_controllable_list) - count + repeat_count))
 
     @staticmethod
     def distance(state1: np.ndarray, state2: np.ndarray) -> float:
@@ -117,7 +130,7 @@ class  ControllabilityTest:
     def check_expand_neighbor_state_in_epsilon_controllable_list(self, expand_neighbor: NeighbourSet) -> Tuple[bool, int]:
         idx_list = []
         for idx, neighbor in enumerate(self.epsilon_controllable_list):
-            if self.distance(expand_neighbor.centered_state, neighbor.centered_state) < 1e-6:
+            if self.distance(expand_neighbor.centered_state, neighbor.centered_state) < 1e-10:
                 idx_list.append(idx)
         if len(idx_list) == 0:
             return False, -1
