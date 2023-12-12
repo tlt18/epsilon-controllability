@@ -22,7 +22,6 @@ class  ControllabilityTest:
         self.epsilon = epsilon
         self.lipschitz_confidence = lipschitz_confidence
         self.epsilon_controllable_list: List[NeighbourSet] = []
-        self.plot_utils = PlotUtils(self.env.observation_space, self.env.action_space)
         
     def sample(self):
         state = self.env.reset()
@@ -32,62 +31,82 @@ class  ControllabilityTest:
             self.buffer.add((state, action, reward, next_state, done))
             state = self.env.reset() if done else next_state
 
-    def backward_expand(self, neighbor: NeighbourSet) -> List[NeighbourSet]:
+    def backward_expand(self, neighbor: NeighbourSet) -> Tuple[List[NeighbourSet], List[NeighbourSet]]:
         '''
         :param neighbor (NeighbourSet): the neighbor set to be expanded
-        :return (List[NeighbourSet]): the expanded neighbor set
+        :return (Tuple[List[NeighbourSet], List[NeighbourSet]]): the expanded neighbor set and last neighbor set
         '''
         assert not neighbor.visited, "The neighbor set has been visited!"
         neighbor.visited = True
-        # step1: finds all the states in the buffer that belong to the neighborhood set
+        
+        # Step 1: Find all the states in the buffer that belong to the neighborhood set
         states_in_buffer_index = [
             idx for idx, transition in enumerate(self.buffer.buffer) 
             if self.distance(transition[3], neighbor.centered_state) <= neighbor.radius
         ]
-        # step2: backward expand the states find in step1
-        return [
-            NeighbourSet(
-                transitions[0], 
-                min(
-                    self.lipschitz_confidence, 
-                    (
-                        neighbor.radius - self.distance(
-                            transitions[3], 
-                            neighbor.centered_state
+        
+        # Step 2: Backward expand the states found in Step 1
+        buffer_transitions = [self.buffer.buffer[i] for i in states_in_buffer_index]
+        if len(buffer_transitions) == 0:
+            return [], []
+        else:
+            neighbour_sets = [
+                (
+                    NeighbourSet(
+                        transitions[0], 
+                        min(
+                            self.lipschitz_confidence, 
+                            (neighbor.radius - self.distance(transitions[3], neighbor.centered_state)) / self.lipschitz_fx(transitions[0])
                         )
-                    ) / self.lipschitz_fx(transitions[0])
+                    ),
+                    NeighbourSet(
+                        transitions[3],
+                        neighbor.radius - self.distance(transitions[3], neighbor.centered_state)
+                    )
                 )
-            )for transitions in [self.buffer.buffer[i] for i in states_in_buffer_index]
-        ]
+                for transitions in buffer_transitions
+            ]
+            return tuple(map(list, zip(*neighbour_sets)))
     
     def get_epsilon_controllable_set(self, state: np.ndarray):
         '''
         :param state (np.ndarray): the state to be tested
         '''
         assert len(self.epsilon_controllable_list) == 0, "The epsilon controllable list is not empty!"
+        count = 0
+        fig, ax = None, None
+        self.plot_utils = PlotUtils(
+            obs_space = self.env.observation_space, 
+            action_space = self.env.action_space,
+            orgin_state = state, 
+            orgin_radius = self.epsilon,
+        )
+
         self.epsilon_controllable_list.append(NeighbourSet(state, self.epsilon))
         # until all the neighbor sets are visited
-        count = 0
         while not all([neighbor.visited for neighbor in self.epsilon_controllable_list]):
             for neighbor in self.epsilon_controllable_list:
                 # TODO: more detailed implementation  
                 if len(self.epsilon_controllable_list) == self.num_sample:
                     return
                 if not neighbor.visited:
-                    expand_neighbor_list = self.backward_expand(neighbor)
+                    expand_neighbor_list, last_neighbor_list = self.backward_expand(neighbor)
                     count += 1
-                    print("count: {}, expand_neighbor_list: {}, epsilon_controllable_list: {}".format(count, len(expand_neighbor_list), len(self.epsilon_controllable_list)))
-                    for expand_neighbor in expand_neighbor_list:
-                        self.plot_utils.plot_backward(
+                    print("count: {}, expand_neighbor_list: {}, epsilon_controllable_list: {}"
+                          .format(count, len(expand_neighbor_list), len(self.epsilon_controllable_list)))
+                    for idx_expland, expand_neighbor in enumerate(expand_neighbor_list):
+                        fig, ax = self.plot_utils.plot_backward(
                             expand_neighbor.centered_state, 
                             expand_neighbor.radius, 
-                            neighbor.centered_state, 
-                            neighbor.radius
+                            last_neighbor_list[idx_expland].centered_state, 
+                            last_neighbor_list[idx_expland].radius,
+                            fig=fig,
+                            ax=ax
                         )
-                        is_repeat, idx = self.check_expand_neighbor_state_in_epsilon_controllable_list(expand_neighbor)
+                        is_repeat, idx_list = self.check_expand_neighbor_state_in_epsilon_controllable_list(expand_neighbor)
                         if is_repeat:
-                            if expand_neighbor.radius > self.epsilon_controllable_list[idx].radius:
-                                self.epsilon_controllable_list[idx].radius = expand_neighbor.radius
+                            if expand_neighbor.radius > self.epsilon_controllable_list[idx_list].radius:
+                                self.epsilon_controllable_list[idx_list].radius = expand_neighbor.radius
                         else:
                             self.epsilon_controllable_list.append(expand_neighbor)
 
