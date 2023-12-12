@@ -37,23 +37,26 @@ class PlotUtils():
         if fig is None or ax is None:
             fig, ax = plt.subplots()
             self.backward_counter = 0
-            ax.set_xlim([self.obs_space.low[0], self.obs_space.high[0]])
-            ax.set_ylim([self.obs_space.low[1], self.obs_space.high[1]])
             ax.axis('equal')
             # plot orgin state with radius orgin_radius
             circle = plt.Circle(self.orgin_state, self.orgin_radius, color='k', fill=False)
             ax.add_patch(circle)
+            # ax.set_xlim([self.obs_space.low[0], self.obs_space.high[0]])
+            # ax.set_ylim([self.obs_space.low[1], self.obs_space.high[1]])
+            
+        # plot line between state and next_state
+        ax.plot([state[0], next_state[0]], [state[1], next_state[1]], color='lightgray')
         # plot circle at state with radius r
-        circle = plt.Circle(state, r, color='r', fill=False)
+        circle = plt.Circle(state, r, color='red', fill=False)
         ax.add_patch(circle)
         # plot circle at next_state with radius next_r
-        circle = plt.Circle(next_state, next_r, color='b', fill=False)
+        circle = plt.Circle(next_state, next_r, color='cornflowerblue', fill=False)
         ax.add_patch(circle)
-        # plot line between state and next_state
-        ax.plot([state[0], next_state[0]], [state[1], next_state[1]], color='g')
         ax.set_xlabel("state1")
         ax.set_ylabel("state2")
+
         # save figure
         self.backward_counter += 1
+        # print("plot count: {}, expand state: {}, last state: {}".format(self.backward_counter, state, next_state))
         plt.savefig(os.path.join(FILEPATH, f"./figs/epsilon_controllable_list_{self.backward_counter}.png"))
         return fig, ax

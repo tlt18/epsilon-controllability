@@ -1,6 +1,6 @@
 # controllability test for dynamics systems in datative setting
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import gym
 import numpy as np
@@ -74,8 +74,6 @@ class  ControllabilityTest:
         '''
         assert len(self.epsilon_controllable_list) == 0, "The epsilon controllable list is not empty!"
         count = 0
-        repeat_count = 0
-        plot_flag = False
         fig, ax = None, None
         self.plot_utils = PlotUtils(
             obs_space = self.env.observation_space, 
@@ -94,23 +92,17 @@ class  ControllabilityTest:
                 if not neighbor.visited:
                     expand_neighbor_list, last_neighbor_list = self.backward_expand(neighbor)
                     for idx_expland, expand_neighbor in enumerate(expand_neighbor_list):
-                        is_repeat, idx_list = self.check_expand_neighbor_state_in_epsilon_controllable_list(expand_neighbor)
-                        if is_repeat:
-                            if expand_neighbor.radius > self.epsilon_controllable_list[idx_list].radius:
-                                print("same state has been visited, original state: {}, radius: {}, new state: {}, radius: {}".format(
-                                    self.epsilon_controllable_list[idx_list].centered_state,
-                                    self.epsilon_controllable_list[idx_list].radius,
-                                    expand_neighbor.centered_state,
-                                    expand_neighbor.radius,
-                                ))
-                                self.epsilon_controllable_list[idx_list].radius = expand_neighbor.radius
-                                self.epsilon_controllable_list[idx_list].visited = False
-                                repeat_count += 1
-                                plot_flag = True
-                        else:
+                        relation, idx_inlist = self.check_expand_neighbor_relation(expand_neighbor)
+                        if relation == None:
                             self.epsilon_controllable_list.append(expand_neighbor)
-                            plot_flag = True
-                        if plot_flag:
+                        elif relation == "list_in_expand":
+                            # del self.epsilon_controllable_list[i] for i in idx_list
+                            for i in reversed(idx_inlist): # there idx_inlist is sorted in ascending order
+                                del self.epsilon_controllable_list[i]
+                            self.epsilon_controllable_list.append(expand_neighbor)
+                        else:
+                            assert relation == "expand_in_list", "relation is not correct!"
+                        if relation != "expand_in_list":
                             fig, ax = self.plot_utils.plot_backward(
                                 expand_neighbor.centered_state, 
                                 expand_neighbor.radius, 
@@ -120,24 +112,26 @@ class  ControllabilityTest:
                                 ax=ax
                             )
                     count += 1
-                    print("expand count: {}, new_neighbor_num: {}, total_controllable_num: {}, unvisited_num: {}"
-                        .format(count, len(expand_neighbor_list), len(self.epsilon_controllable_list), len(self.epsilon_controllable_list) - count + repeat_count))
+                    print("expand count: {}, new_neighbor_num: {}, total_controllable_num: {}"
+                        .format(count, len(expand_neighbor_list), len(self.epsilon_controllable_list))
+                    )
 
     @staticmethod
     def distance(state1: np.ndarray, state2: np.ndarray) -> float:
         return np.linalg.norm(state1 - state2, ord=2)
     
-    def check_expand_neighbor_state_in_epsilon_controllable_list(self, expand_neighbor: NeighbourSet) -> Tuple[bool, int]:
+    def check_expand_neighbor_relation(self, expand_neighbor: NeighbourSet) -> Tuple[Optional[str], List[int]]:
         idx_list = []
         for idx, neighbor in enumerate(self.epsilon_controllable_list):
-            if self.distance(expand_neighbor.centered_state, neighbor.centered_state) < 1e-10:
+            dist = self.distance(expand_neighbor.centered_state, neighbor.centered_state)
+            if dist <= neighbor.radius - expand_neighbor.radius:
+                return "expand_in_list", [idx]
+            elif dist <= expand_neighbor.radius - neighbor.radius:
                 idx_list.append(idx)
-        if len(idx_list) == 0:
-            return False, -1
-        elif len(idx_list) == 1:
-            return True, idx_list[0]
+        if len(idx_list) > 0:
+            return "list_in_expand", idx_list
         else:
-            raise ValueError("The expand_neighbor is in the epsilon_controllable_list more than once!")
+            return None, [-1]
 
     def lipschitz_fx(self, state: np.ndarray) -> float:
         states_in_buffer_index = [
