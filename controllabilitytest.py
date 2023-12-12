@@ -123,8 +123,12 @@ class  ControllabilityTest:
         time_sample = time.time() - time_start
         print("time for sampling: {:.4f}s".format(time_sample))
 
+        self.plot_utils.plot_sample(self.buffer.buffer)
+        time_plot = time.time() - time_start - time_sample
+        print("time for plotting: {:.4f}s".format(time_plot))
+
         self.get_epsilon_controllable_set(state)
-        time_calonestep = time.time() - time_start - time_sample
+        time_calonestep = time.time() - time_start - time_sample - time_plot
         print("time for calculating epsilon controllable set: {:.4f}s".format(time_calonestep))
 
         self.plot_utils.plot_sample(self.buffer.buffer)
@@ -152,7 +156,7 @@ class  ControllabilityTest:
             if self.distance(transition[0], state) <= self.lipschitz_confidence
         ]
         # TODO: implement the lipschitz constant of the dynamics function
-        return 0.8
+        return 1.2
 
     def clear(self):
         self.epsilon_controllable_list = []
