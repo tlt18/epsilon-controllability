@@ -1,5 +1,6 @@
 # controllability test for dynamics systems in datative setting
 from dataclasses import dataclass
+import time
 from typing import List, Optional, Tuple
 
 import gym
@@ -115,6 +116,18 @@ class  ControllabilityTest:
                     print("expand count: {}, new_neighbor_num: {}, total_controllable_num: {}"
                         .format(count, len(expand_neighbor_list), len(self.epsilon_controllable_list))
                     )
+
+    def run(self, state: np.ndarray):
+        time_start = time.time()
+        self.sample()
+        time_sample = time.time() - time_start
+        print("time for sampling: {:.4f}s".format(time_sample))
+
+        self.get_epsilon_controllable_set(state)
+        time_calonestep = time.time() - time_start - time_sample
+        print("time for calculating epsilon controllable set: {:.4f}s".format(time_calonestep))
+
+        self.plot_utils.plot_sample(self.buffer.buffer)
 
     @staticmethod
     def distance(state1: np.ndarray, state2: np.ndarray) -> float:
