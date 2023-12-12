@@ -60,3 +60,27 @@ class PlotUtils():
         # print("plot count: {}, expand state: {}, last state: {}".format(self.backward_counter, state, next_state))
         plt.savefig(os.path.join(FILEPATH, f"./figs/epsilon_controllable_list_{self.backward_counter}.png"))
         return fig, ax
+    
+    def plot_sample(self, sample_list: List):
+        plt.figure()
+        # plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
+        # plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
+        # plot line with arrow
+        for k in range(len(sample_list)):
+            plt.plot([sample_list[k][0][0], sample_list[k][3][0]], [sample_list[k][0][1], sample_list[k][3][1]], color='lightgray', linewidth=0.5)
+            plt.plot(sample_list[k][0][0], sample_list[k][0][1], 'o', color='cornflowerblue', markersize=2)
+            plt.plot(sample_list[k][3][0], sample_list[k][3][1], 'o', color='cornflowerblue', markersize=2)
+            plt.arrow(
+                sample_list[k][0][0], 
+                sample_list[k][0][1], 
+                sample_list[k][3][0] - sample_list[k][0][0], 
+                sample_list[k][3][1] - sample_list[k][0][1], 
+                color='red',
+                width = 0.001,
+                head_width = 0.01,
+            )
+        plt.axis('equal')
+        plt.xlabel("state1")
+        plt.ylabel("state2")
+        plt.savefig(os.path.join(FILEPATH, "./figs/sample.png"))
+        plt.close()
