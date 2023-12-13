@@ -132,10 +132,6 @@ class  ControllabilityTest:
 
         self.plot_utils.plot_sample(self.buffer.buffer)
 
-    @staticmethod
-    def distance(state1: np.ndarray, state2: np.ndarray) -> float:
-        return np.linalg.norm(state1 - state2, ord=2)
-    
     def check_expand_neighbor_relation(self, expand_neighbor: NeighbourSet) -> Tuple[Optional[str], List[int]]:
         idx_list = []
         for idx, neighbor in enumerate(self.epsilon_controllable_list):
@@ -166,6 +162,18 @@ class  ControllabilityTest:
 
         return 1
     
+    def lipschitz_fx_sampling(self, state: np.ndarray) -> float:
+        # calculate the lipschitz constant of the dynamics function at state within self.lipschitz_confidence
+        state_dim = state.shape[0]
+        Lx = 0
+        # sample state and action
+        for _ in range(10):
+            action = self.env.action_space.sample()
+            delta_state = np.random.randn(state_dim)
+            delta_state = delta_state / np.linalg.norm(delta_state, ord=2) * np.random.uniform(0.0001, self.lipschitz_confidence)
+            Lx = max(Lx, self.jacobi_atx(state + delta_state, action))
+        return Lx
+    
     def jacobi_atx(self, state: np.ndarray, action: np.ndarray) -> float:
         # calculate the lipschitz constant of the dynamics function at (state, action)
         state_dim = state.shape[0]
@@ -175,6 +183,10 @@ class  ControllabilityTest:
             delta_x = np.eye(state_dim)[i] * delta_d
             lipschitz_x[:, i] = (self.env.model_forward(state + delta_x, action) - self.env.model_forward(state - delta_x, action)) / (2 * delta_d)
         return np.linalg.norm(lipschitz_x, ord=2)
+    
+    @staticmethod
+    def distance(state1: np.ndarray, state2: np.ndarray) -> float:
+        return np.linalg.norm(state1 - state2, ord=2)
 
     def clear(self):
         self.epsilon_controllable_list = []
