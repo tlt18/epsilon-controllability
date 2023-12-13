@@ -46,8 +46,14 @@ class SimpleOCPwithControl(gym.Env):
         self.action_space.seed(seed)
         return [seed]
     
+    def model_forward(self, state, action):
+        return np.array([1/2 * state[0] + action[0], 1/2 * state[1]], dtype = np.float32)
+    
 
 class SimpleOCPwoControl(SimpleOCPwithControl, gym.Env):
     def get_next_state(self, action):
-        return np.array([1/2 * self.state[0], 1/2 * self.state[1]])
+        return np.array([1/2 * self.state[0], 1/2 * self.state[1]], dtype = np.float32)
+    
+    def model_forward(self, state, action):
+        return np.array([1/2 * state[0], 1/2 * state[1]], dtype = np.float32)
     

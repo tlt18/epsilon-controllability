@@ -51,6 +51,7 @@ class  ControllabilityTest:
             if self.distance(transition[3], neighbor.centered_state) <= neighbor.radius
         ]
 
+        # Step 2: one-step backward expand
         if len(buffer_transitions) == 0:
             return [], []
         else:
@@ -164,6 +165,16 @@ class  ControllabilityTest:
         # TODO: solve QP: min Lx**2 + Lu**2, s.t. next_state_dist<=Lx*state_dist+Lu*action_dist
 
         return 1
+    
+    def jacobi_atx(self, state: np.ndarray, action: np.ndarray) -> float:
+        # calculate the lipschitz constant of the dynamics function at (state, action)
+        state_dim = state.shape[0]
+        delta_d = 0.001
+        lipschitz_x = np.zeros((state_dim, state_dim))
+        for i in range(state_dim):
+            delta_x = np.eye(state_dim)[i] * delta_d
+            lipschitz_x[:, i] = (self.env.model_forward(state + delta_x, action) - self.env.model_forward(state - delta_x, action)) / (2 * delta_d)
+        return np.linalg.norm(lipschitz_x, ord=2)
 
     def clear(self):
         self.epsilon_controllable_list = []
