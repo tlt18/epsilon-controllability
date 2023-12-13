@@ -46,31 +46,29 @@ class  ControllabilityTest:
         neighbor.visited = True
         
         # Step 1: Find all the states in the buffer that belong to the neighborhood set
-        states_in_buffer_index = [
-            idx for idx, transition in enumerate(self.buffer.buffer) 
+        buffer_transitions = [
+            transition for transition in self.buffer.buffer
             if self.distance(transition[3], neighbor.centered_state) <= neighbor.radius
         ]
-        
-        # Step 2: Backward expand the states found in Step 1
-        buffer_transitions = [self.buffer.buffer[i] for i in states_in_buffer_index]
+
         if len(buffer_transitions) == 0:
             return [], []
         else:
             neighbour_sets = [
                 (
                     NeighbourSet(
-                        transitions[0], 
+                        transition[0], 
                         min(
                             self.lipschitz_confidence, 
-                            (neighbor.radius - self.distance(transitions[3], neighbor.centered_state)) / self.lipschitz_fx(transitions[0])
+                            (neighbor.radius - self.distance(transition[3], neighbor.centered_state)) / self.lipschitz_fx(transition)
                         )
                     ),
                     NeighbourSet(
-                        transitions[3],
-                        neighbor.radius - self.distance(transitions[3], neighbor.centered_state)
+                        transition[3],
+                        neighbor.radius - self.distance(transition[3], neighbor.centered_state)
                     )
                 )
-                for transitions in buffer_transitions
+                for transition in buffer_transitions
             ]
             return tuple(map(list, zip(*neighbour_sets)))
     
@@ -150,13 +148,22 @@ class  ControllabilityTest:
         else:
             return None, [-1]
 
-    def lipschitz_fx(self, state: np.ndarray) -> float:
-        states_in_buffer_index = [
-            idx for idx, transition in enumerate(self.buffer.buffer) 
-            if self.distance(transition[0], state) <= self.lipschitz_confidence
+    def lipschitz_fx(self, target_transition: Tuple) -> float:
+        buffer_transitions = [
+            transition for transition in self.buffer.buffer
+            if self.distance(transition[0], target_transition[0]) <= self.lipschitz_confidence
         ]
-        # TODO: implement the lipschitz constant of the dynamics function
-        return 1.2
+        # only Lx
+        # return max([(next_state - transition[3]) / (state - transition[0]) for transition in buffer_transitions])
+
+        # Lx and Lu
+        next_state_dist = [self.distance(transition[3], target_transition[3]) for transition in buffer_transitions]
+        state_dist = [self.distance(transition[0], target_transition[0]) for transition in buffer_transitions]
+        action_dist = [self.distance(transition[1], target_transition[1]) for transition in buffer_transitions]
+
+        # TODO: solve QP: min Lx**2 + Lu**2, s.t. next_state_dist<=Lx*state_dist+Lu*action_dist
+
+        return 1
 
     def clear(self):
         self.epsilon_controllable_list = []
