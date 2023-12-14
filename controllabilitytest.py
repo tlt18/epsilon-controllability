@@ -51,6 +51,7 @@ class  ControllabilityTest:
             if self.distance(transition[3], neighbor.centered_state) <= neighbor.radius
         ]
 
+        # Step 2: one-step backward expand
         if len(buffer_transitions) == 0:
             return [], []
         else:
@@ -131,10 +132,6 @@ class  ControllabilityTest:
 
         self.plot_utils.plot_sample(self.buffer.buffer)
 
-    @staticmethod
-    def distance(state1: np.ndarray, state2: np.ndarray) -> float:
-        return np.linalg.norm(state1 - state2, ord=2)
-    
     def check_expand_neighbor_relation(self, expand_neighbor: NeighbourSet) -> Tuple[Optional[str], List[int]]:
         idx_list = []
         for idx, neighbor in enumerate(self.epsilon_controllable_list):
@@ -148,7 +145,7 @@ class  ControllabilityTest:
         else:
             return None, [-1]
 
-    def lipschitz_fx(self, target_transition: Tuple) -> Tuple[float, float]:
+    def lipschitz_fx(self, target_transition: Tuple) -> float:
         buffer_transitions = [
             transition for transition in self.buffer.buffer
             if self.distance(transition[0], target_transition[0]) <= self.lipschitz_confidence
@@ -162,6 +159,7 @@ class  ControllabilityTest:
         # action_dist = [self.distance(transition[1], target_transition[1]) for transition in buffer_transitions]
         t = time.time()
         # TODO: solve QP: min Lx**2 + Lu**2, s.t. next_state_dist<=Lx*state_dist+Lu*action_dist
+
         P = matrix([[1.0, 0.0], [0.0, 1.0]])
         q = matrix([0.0, 0.0])
         h = matrix([next_state_dist])
@@ -169,7 +167,35 @@ class  ControllabilityTest:
         solution = solvers.qp(P, q, G, h)
         x = np.array(solution['x'])
         print(f'cost:qp_solving:{time.time() - t:.4f}s')
-        return x[0], x[1]
+        return x[0]
+
+    
+    def lipschitz_fx_sampling(self, state: np.ndarray) -> float:
+        # calculate the lipschitz constant of the dynamics function at state within self.lipschitz_confidence
+        state_dim = state.shape[0]
+        Lx = 0
+        # sample state and action
+        for _ in range(10):
+            action = self.env.action_space.sample()
+            delta_state = np.random.randn(state_dim)
+            delta_state = delta_state / np.linalg.norm(delta_state, ord=2) * np.random.uniform(0.0001, self.lipschitz_confidence)
+            Lx = max(Lx, self.jacobi_atx(state + delta_state, action))
+        return Lx
+    
+    def jacobi_atx(self, state: np.ndarray, action: np.ndarray) -> float:
+        # calculate the lipschitz constant of the dynamics function at (state, action)
+        state_dim = state.shape[0]
+        delta_d = 0.001
+        lipschitz_x = np.zeros((state_dim, state_dim))
+        for i in range(state_dim):
+            delta_x = np.eye(state_dim)[i] * delta_d
+            lipschitz_x[:, i] = (self.env.model_forward(state + delta_x, action) - self.env.model_forward(state - delta_x, action)) / (2 * delta_d)
+        return np.linalg.norm(lipschitz_x, ord=2)
+    
+    @staticmethod
+    def distance(state1: np.ndarray, state2: np.ndarray) -> float:
+        return np.linalg.norm(state1 - state2, ord=2)
+
 
     def clear(self):
 
