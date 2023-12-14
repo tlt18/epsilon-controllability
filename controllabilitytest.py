@@ -6,6 +6,7 @@ import os
 import time
 from typing import List, Optional, Tuple, Union
 
+from cvxopt import solvers, matrix
 import gym
 import numpy as np
 
@@ -62,7 +63,7 @@ class  ControllabilityTest:
         
     def sample(self):
         state = self.env.reset()
-        for step in range(self.num_sample):
+        for _ in range(self.num_sample):
             action = self.env.action_space.sample()
             next_state, reward, done, _ = self.env.step(action)
             self.buffer.add((state, action, reward, next_state, done))
@@ -177,17 +178,24 @@ class  ControllabilityTest:
     def lipschitz_fx(self, data: Transition) -> float:
         data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, data.state) <= self.lipschitz_confidence])
         # only Lx
-        # return max([(next_state - transition[3]) / (state - transition[0]) for transition in buffer_transitions])
+        # return max([(next_state - data.next_state) / (state - data.state) for data in data_in_neighbourhood])
 
         # Lx and Lu
+        next_state_dist = float(self.distance(data_in_neighbourhood.next_state, data.next_state))
+        state_dist = float(self.distance(data_in_neighbourhood.state, data.state))
+        # action_dist = float(np.max(self.distance(data_in_neighbourhood.action, data.action)))
 
-        next_state_dist = np.max(self.distance(data_in_neighbourhood.next_state, data.next_state))
-        state_dist = np.max(np.max(self.distance(data_in_neighbourhood.state, data.state)))
-        action_dist = np.max(np.max(self.distance(data_in_neighbourhood.action, data.action)))
+        # solve QP: min Lx**2 + Lu**2, s.t. next_state_dist<=Lx*state_dist+Lu*action_dist
+        time_start = time.time()
+        P = matrix([[1.0, 0.0], [0.0, 1.0]])
+        q = matrix([0.0, 0.0])
+        h = matrix([next_state_dist])
+        G = matrix(state_dist).T
+        solution = solvers.qp(P, q, G, h)
+        x = np.array(solution['x'])
+        print(f'cost:qp_solving:{time.time() - time_start:.4f}s')
+        return x[0]
 
-        # TODO: solve QP: min Lx**2 + Lu**2, s.t. next_state_dist<=Lx*state_dist+Lu*action_dist
-        return 1
-    
     def lipschitz_fx_sampling(self, state: np.ndarray) -> float:
         # calculate the lipschitz constant of the dynamics function at state within self.lipschitz_confidence
         state_dim = state.shape[0]
