@@ -8,7 +8,7 @@ import numpy as np
 
 from buffer import Buffer
 from utils_plots import PlotUtils
-
+from cvxopt import solvers, matrix
 @dataclass
 class NeighbourSet:
     centered_state: np.ndarray
@@ -60,7 +60,7 @@ class  ControllabilityTest:
                         transition[0], 
                         min(
                             self.lipschitz_confidence, 
-                            (neighbor.radius - self.distance(transition[3], neighbor.centered_state)) / self.lipschitz_fx(transition)
+                            (neighbor.radius - self.distance(transition[3], neighbor.centered_state)) / self.lipschitz_fx(transition)[0]
                         )
                     ),
                     NeighbourSet(
@@ -148,7 +148,7 @@ class  ControllabilityTest:
         else:
             return None, [-1]
 
-    def lipschitz_fx(self, target_transition: Tuple) -> float:
+    def lipschitz_fx(self, target_transition: Tuple) -> Tuple[float, float]:
         buffer_transitions = [
             transition for transition in self.buffer.buffer
             if self.distance(transition[0], target_transition[0]) <= self.lipschitz_confidence
@@ -157,15 +157,22 @@ class  ControllabilityTest:
         # return max([(next_state - transition[3]) / (state - transition[0]) for transition in buffer_transitions])
 
         # Lx and Lu
-        next_state_dist = [self.distance(transition[3], target_transition[3]) for transition in buffer_transitions]
-        state_dist = [self.distance(transition[0], target_transition[0]) for transition in buffer_transitions]
-        action_dist = [self.distance(transition[1], target_transition[1]) for transition in buffer_transitions]
-
+        next_state_dist = [float(-self.distance(transition[3], target_transition[3])) for transition in buffer_transitions]
+        state_dist = [[float(-self.distance(transition[0], target_transition[0])),float(-self.distance(transition[1], target_transition[1]))] for transition in buffer_transitions]
+        # action_dist = [self.distance(transition[1], target_transition[1]) for transition in buffer_transitions]
+        t = time.time()
         # TODO: solve QP: min Lx**2 + Lu**2, s.t. next_state_dist<=Lx*state_dist+Lu*action_dist
-
-        return 1
+        P = matrix([[1.0, 0.0], [0.0, 1.0]])
+        q = matrix([0.0, 0.0])
+        h = matrix([next_state_dist])
+        G = matrix(state_dist).T
+        solution = solvers.qp(P, q, G, h)
+        x = np.array(solution['x'])
+        print(f'cost:qp_solving:{time.time() - t:.4f}s')
+        return x[0], x[1]
 
     def clear(self):
+
         self.epsilon_controllable_list = []
         self.buffer.clear()
 
