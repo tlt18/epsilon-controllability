@@ -1,13 +1,17 @@
 # controllability test for dynamics systems in datative setting
+from copy import deepcopy
 from dataclasses import dataclass
+import datetime
+import os
 import time
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import gym
 import numpy as np
 
 from buffer import Buffer
-from utils_plots import PlotUtils
+from utils_plots import PlotUtils, FILEPATH
+
 
 @dataclass
 class NeighbourSet:
@@ -15,19 +19,46 @@ class NeighbourSet:
     radius: float
     visited: bool = False
 
+
+class Transition:
+    state: np.ndarray
+    action: np.ndarray
+    next_state: np.ndarray
+
+    def __init__(self, state: np.ndarray, action: np.ndarray, next_state: np.ndarray):
+        self.state = state
+        self.action = action
+        self.next_state = next_state
+
+    def __len__(self):
+        return len(self.state)
+    
+    def __getitem__(self, index):
+        return Transition(
+            state = self.state[index],
+            action = self.action[index],
+            next_state = self.next_state[index],
+        )
+
+
 class  ControllabilityTest:
-    def __init__(self, env: gym.Env , buffer: Buffer, num_sample: int = 10000, epsilon: float = 0.05, lipschitz_confidence: float = 1):
+    def __init__(self, env: gym.Env , buffer: Buffer, num_sample: int = 10000, epsilon: float = 0.05, lipschitz_confidence: float = 1, plot_flag = False):
         self.env = env
         self.buffer = buffer
         self.num_sample = num_sample
         self.epsilon = epsilon
         self.lipschitz_confidence = lipschitz_confidence
+        self.plot_flag = plot_flag
         self.epsilon_controllable_list: List[NeighbourSet] = []
+        date_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        os.mkdir(FILEPATH + f"/figs/{date_time}")
         self.plot_utils = PlotUtils(
             obs_space = self.env.observation_space, 
             action_space = self.env.action_space,
             orgin_radius = self.epsilon,
+            date_time = date_time,
         )
+        self.dataset = None
         
     def sample(self):
         state = self.env.reset()
@@ -36,6 +67,7 @@ class  ControllabilityTest:
             next_state, reward, done, _ = self.env.step(action)
             self.buffer.add((state, action, reward, next_state, done))
             state = self.env.reset() if done else next_state
+        self.dataset = Transition(*self.buffer.get_data())
 
     def backward_expand(self, neighbor: NeighbourSet) -> Tuple[List[NeighbourSet], List[NeighbourSet]]:
         '''
@@ -46,30 +78,27 @@ class  ControllabilityTest:
         neighbor.visited = True
         
         # Step 1: Find all the states in the buffer that belong to the neighborhood set
-        buffer_transitions = [
-            transition for transition in self.buffer.buffer
-            if self.distance(transition[3], neighbor.centered_state) <= neighbor.radius
-        ]
+        data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.next_state, neighbor.centered_state) <= neighbor.radius])
 
         # Step 2: one-step backward expand
-        if len(buffer_transitions) == 0:
+        if len(data_in_neighbourhood) == 0:
             return [], []
         else:
             neighbour_sets = [
                 (
                     NeighbourSet(
-                        transition[0], 
+                        data.state, 
                         min(
                             self.lipschitz_confidence, 
-                            (neighbor.radius - self.distance(transition[3], neighbor.centered_state)) / self.lipschitz_fx(transition)
+                            (neighbor.radius - self.distance(data.next_state, neighbor.centered_state)) / self.lipschitz_fx(data)
                         )
                     ),
                     NeighbourSet(
-                        transition[3],
-                        neighbor.radius - self.distance(transition[3], neighbor.centered_state)
+                        data.next_state,
+                        neighbor.radius - self.distance(data.next_state, neighbor.centered_state)
                     )
                 )
-                for transition in buffer_transitions
+                for data in data_in_neighbourhood
             ]
             return tuple(map(list, zip(*neighbour_sets)))
     
@@ -102,7 +131,7 @@ class  ControllabilityTest:
                             self.epsilon_controllable_list.append(expand_neighbor)
                         else:
                             assert relation == "expand_in_list", "relation is not correct!"
-                        if relation != "expand_in_list":
+                        if relation != "expand_in_list" and self.plot_flag:
                             fig, ax = self.plot_utils.plot_backward(
                                 expand_neighbor.centered_state, 
                                 expand_neighbor.radius, 
@@ -145,21 +174,18 @@ class  ControllabilityTest:
         else:
             return None, [-1]
 
-    def lipschitz_fx(self, target_transition: Tuple) -> float:
-        buffer_transitions = [
-            transition for transition in self.buffer.buffer
-            if self.distance(transition[0], target_transition[0]) <= self.lipschitz_confidence
-        ]
+    def lipschitz_fx(self, data: Transition) -> float:
+        data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, data.state) <= self.lipschitz_confidence])
         # only Lx
         # return max([(next_state - transition[3]) / (state - transition[0]) for transition in buffer_transitions])
 
         # Lx and Lu
-        next_state_dist = [self.distance(transition[3], target_transition[3]) for transition in buffer_transitions]
-        state_dist = [self.distance(transition[0], target_transition[0]) for transition in buffer_transitions]
-        action_dist = [self.distance(transition[1], target_transition[1]) for transition in buffer_transitions]
+
+        next_state_dist = np.max(self.distance(data_in_neighbourhood.next_state, data.next_state))
+        state_dist = np.max(np.max(self.distance(data_in_neighbourhood.state, data.state)))
+        action_dist = np.max(np.max(self.distance(data_in_neighbourhood.action, data.action)))
 
         # TODO: solve QP: min Lx**2 + Lu**2, s.t. next_state_dist<=Lx*state_dist+Lu*action_dist
-
         return 1
     
     def lipschitz_fx_sampling(self, state: np.ndarray) -> float:
@@ -186,11 +212,15 @@ class  ControllabilityTest:
     
     @staticmethod
     def distance(state1: np.ndarray, state2: np.ndarray) -> float:
-        return np.linalg.norm(state1 - state2, ord=2)
+        if len(state1.shape) == 1:
+            return np.linalg.norm(state1 - state2, ord=2)
+        else:
+            return np.linalg.norm(state1 - state2, ord=2, axis=1)
 
     def clear(self):
         self.epsilon_controllable_list = []
         self.buffer.clear()
+        self.dataset = None
 
     def seed(self, seed=None):
         self.env.seed(seed)
