@@ -11,11 +11,13 @@ class PlotUtils():
             obs_space, 
             action_space,
             orgin_radius,
+            date_time
         ):
         self.obs_space = obs_space
         self.action_space = action_space
         self.backward_counter = 0
         self.orgin_radius = orgin_radius
+        self.data_time = date_time
 
     def set_orgin_state(self, orgin_state):
         self.orgin_state = orgin_state
@@ -31,7 +33,7 @@ class PlotUtils():
         plt.axis('equal')
         plt.xlabel("state1")
         plt.ylabel("state2")
-        plt.savefig(os.path.join(FILEPATH, "./figs/epsilon_controllable_list.png"))
+        plt.savefig(os.path.join(FILEPATH, f"figs/{self.data_time}/epsilon_controllable_list.png"))
         plt.close()
 
     def plot_backward(self, state, r, next_state, next_r, fig=None, ax=None):
@@ -46,7 +48,7 @@ class PlotUtils():
             # ax.set_xlim([self.obs_space.low[0], self.obs_space.high[0]])
             # ax.set_ylim([self.obs_space.low[1], self.obs_space.high[1]])
         # plot line between state and next_state
-        # ax.plot([state[0], next_state[0]], [state[1], next_state[1]], color='lightgray')
+        ax.plot([state[0], next_state[0]], [state[1], next_state[1]], color='lightgray')
         # plot circle at state with radius r
         circle = plt.Circle(state, r, color='red', fill=False)
         ax.add_patch(circle)
@@ -59,8 +61,8 @@ class PlotUtils():
         # save figure
         self.backward_counter += 1
         # print("plot count: {}, expand state: {}, last state: {}".format(self.backward_counter, state, next_state))
-        if self.backward_counter%1000 == 0:
-            plt.savefig(os.path.join(FILEPATH, f"./figs/epsilon_controllable_list_{self.backward_counter}.png"))
+        if self.backward_counter%1 == 0:
+            plt.savefig(os.path.join(FILEPATH, f"figs/{self.data_time}/epsilon_controllable_list_{self.backward_counter}.png"))
         return fig, ax
     
     def plot_sample(self, sample_list: List):
@@ -84,5 +86,5 @@ class PlotUtils():
         plt.axis('equal')
         plt.xlabel("state1")
         plt.ylabel("state2")
-        plt.savefig(os.path.join(FILEPATH, "./figs/sample.png"))
+        plt.savefig(os.path.join(FILEPATH, f"figs/{self.data_time}/sample.png"))
         plt.close()
