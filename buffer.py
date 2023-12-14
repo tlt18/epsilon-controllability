@@ -25,6 +25,13 @@ class Buffer:
         done_batch = np.array([transition[4] for transition in batch])
         return state_batch, action_batch, reward_batch, next_state_batch, done_batch
 
+    def get_data(self):
+        assert len(self.buffer) > 0, "The buffer is empty."
+        state_batch = np.array([transition[0] for transition in self.buffer])
+        action_batch = np.array([transition[1] for transition in self.buffer])
+        next_state_batch = np.array([transition[3] for transition in self.buffer])
+        return state_batch, action_batch, next_state_batch
+
     def __len__(self):
         return len(self.buffer)
     
