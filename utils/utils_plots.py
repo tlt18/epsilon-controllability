@@ -65,6 +65,10 @@ class PlotUtils():
         self.backward_counter += 1
         return fig, ax
     
+    def save_figs(self, fig, ax):
+        ax.set_title(f"backward_{self.backward_counter}")
+        plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/expand_backward/{-1}.png"))
+    
     def plot_sample(self, sample_list: List):
         plt.figure()
         # plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
