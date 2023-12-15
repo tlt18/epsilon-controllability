@@ -174,10 +174,6 @@ class  ControllabilityTest:
             idx_set = 0
             while idx_set < len(self.epsilon_controllable_set):
                 neighbor = self.epsilon_controllable_set[idx_set]
-                # find the first false visited neighbor set
-                first = np.where(self.epsilon_controllable_set.visited == False)[0][0]
-                print("first false: {}".format(first))
-
                 # TODO: more detailed implementation  
                 if len(self.epsilon_controllable_set) == self.num_sample:
                     return
