@@ -212,16 +212,16 @@ class  ControllabilityTest:
         # return max([(next_state - data.next_state) / (state - data.state) for data in data_in_neighbourhood])
 
         # Lx and Lu
-        next_state_dist = float(self.distance(data_in_neighbourhood.next_state, data.next_state))
-        state_dist = float(self.distance(data_in_neighbourhood.state, data.state))
-        # action_dist = float(np.max(self.distance(data_in_neighbourhood.action, data.action)))
+        next_state_dist =[float(-distance) for distance in self.distance(data_in_neighbourhood.next_state, data.next_state)]
+        states_dist = [[float(-self.distance(data_unit.state,data.state)),
+                        float(-self.distance(data_unit.action,data.action))] for data_unit in data_in_neighbourhood]
 
         # solve QP: min Lx**2 + Lu**2, s.t. next_state_dist<=Lx*state_dist+Lu*action_dist
         time_start = time.time()
         P = matrix([[1.0, 0.0], [0.0, 1.0]])
         q = matrix([0.0, 0.0])
         h = matrix([next_state_dist])
-        G = matrix(state_dist).T
+        G = matrix(states_dist).T
         solution = solvers.qp(P, q, G, h)
         x = np.array(solution['x'])
         print(f'cost:qp_solving:{time.time() - time_start:.4f}s')
