@@ -151,7 +151,8 @@ class  ControllabilityTest:
                 centered_state = data_in_neighbourhood.state,
                 radius = np.minimum(
                     self.lipschitz_confidence, 
-                    (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) / self.lipschitz_fx_sampling(data_in_neighbourhood.state)
+                    (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) /\
+                    self.lipschitz_fx_sampling(data_in_neighbourhood.state)
                 ),
                 visited=np.zeros(len(data_in_neighbourhood), dtype=bool),
             ), NeighbourSet(
@@ -159,7 +160,7 @@ class  ControllabilityTest:
                 radius = neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state),
                 visited=np.zeros(len(data_in_neighbourhood), dtype=bool),
             )
-    
+
     def get_epsilon_controllable_set(self, state: np.ndarray):
         '''
         :param state (np.ndarray): the state to be tested
@@ -217,20 +218,15 @@ class  ControllabilityTest:
 
 
     def run(self, state: np.ndarray):
-        time_start = time.time()
-        self.sample()
-        time_sample = time.time() - time_start
-        print("time for sampling: {:.4f}s".format(time_sample))
+        with Timeit("sample time"):
+            self.sample()
 
-        time_plot = 0
         if self.plot_flag:
-            self.plot_utils.plot_sample(self.buffer.buffer)
-            time_plot = time.time() - time_start - time_sample
-            print("time for plotting: {:.4f}s".format(time_plot))
+            with Timeit("plot sample time"):
+                self.plot_utils.plot_sample(self.buffer.buffer)
 
-        self.get_epsilon_controllable_set(state)
-        time_calonestep = time.time() - time_start - time_sample - time_plot
-        print("time for calculating epsilon controllable set: {:.4f}s".format(time_calonestep))
+        with Timeit("calculate epsilon controllable set time"):
+            self.get_epsilon_controllable_set(state)
 
     def check_expand_neighbor_relation(self, expand_neighbor: NeighbourSet) -> Tuple[Optional[str], Optional[np.ndarray]]:
         dist = self.distance(expand_neighbor.centered_state, self.epsilon_controllable_set.centered_state)
@@ -275,27 +271,36 @@ class  ControllabilityTest:
 
     def lipschitz_fx_sampling(self, state: np.ndarray) -> np.ndarray:
         # calculate the lipschitz constant of the dynamics function at state within self.lipschitz_confidence
+        sample_num = 10
         unbatched = len(state.shape) == 1
         if unbatched == 1:
             states = state[None, :]
         else:
             states = state
         batch_size, state_dim = states.shape
-        Lx = np.zeros(batch_size)
         # sample state and action
-        for _ in range(10):
-            sample_action = self.env.action_space.sample().repeat(batch_size, axis=0)
-            sample_state = np.random.randn(state_dim)
-            sample_state = sample_state / np.linalg.norm(sample_state, ord=2) * np.random.uniform(0.0001, self.lipschitz_confidence)
-            Lx = np.maximum(Lx, self.jacobi_atx(states + sample_state, sample_action))
+        sample_actions = np.array([
+            self.env.action_space.sample() 
+            for _ in range(sample_num)
+        ])[:, None, :].repeat(batch_size, axis=1)
+        sample_delta_states = np.random.randn(sample_num, batch_size, state_dim)
+        sample_delta_states = sample_delta_states / \
+            np.linalg.norm(sample_delta_states, axis=2, keepdims=True) * \
+            np.random.uniform(0.00001, self.lipschitz_confidence, size=(sample_num, batch_size, 1))
+        # sample_delta_states: [sample_num, batch_size, state_dim]
+        # states: [batch_size, state_dim]
+        sample_states = (sample_delta_states + states[None, :]).reshape(-1, state_dim)
+        sample_actions = sample_actions.reshape(-1, self.env.action_space.shape[0])
+
+        Lx = self.jacobi_atx(sample_states, sample_actions).reshape(sample_num, batch_size)
+        Lx = np.max(Lx, axis=0)
         if unbatched:
             Lx = Lx[0]
-        print(f'Lx: {Lx}')
+        # print(f'Lx: {Lx}')
         return Lx
-    
+            
     def jacobi_atx(self, state: np.ndarray, action: np.ndarray) -> np.ndarray:
         # calculate the lipschitz constant of the dynamics function at (state, action)
-        # TODO: check whether this function support unbatched data
         unbatched = len(state.shape) == 1
         if unbatched:
             states = state[None, :]
@@ -306,15 +311,18 @@ class  ControllabilityTest:
         batch_size, state_dim = states.shape
         delta_d = 0.001
         lipschitz_x = np.zeros((batch_size, state_dim, state_dim))
-        for i in range(state_dim):
-            delta_x = np.eye(state_dim)[i] * delta_d
-            lipschitz_x[:, :, i] = (
-                self.env.model_forward(
-                    states + delta_x, actions
-                ) - self.env.model_forward(
-                    states - delta_x, actions
-                )
-            ) / (2 * delta_d)
+        delta_x = np.eye(state_dim) * delta_d
+        delta_x = delta_x[None, :]
+        states = states[:, None, :]
+        actions = actions[:, None, :].repeat(state_dim, axis=1).reshape(-1, self.env.action_space.shape[0])
+        lipschitz_x = (
+            self.env.model_forward(
+                (states + delta_x).reshape(-1, state_dim), actions
+            ) - self.env.model_forward(
+                (states - delta_x).reshape(-1, state_dim), actions
+            )
+        ) / (2 * delta_d)
+        lipschitz_x = lipschitz_x.reshape(batch_size, state_dim, state_dim)
         result = np.linalg.norm(lipschitz_x, ord=2, axis=(1,2)) 
         if unbatched:
             result = result[0]

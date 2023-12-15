@@ -48,9 +48,9 @@ class SimpleOCPwithControl(gym.Env):
     
     def model_forward(self, state, action):
         if len(state.shape) > 1:
-            return np.array([1/2 * state[:, 0] + action[:], 1/2 * state[:, 1]], dtype = np.float32).T
+            return np.array([1/2 * state[:, 0] + action[:, 0], 1/2 * state[:, 1]], dtype = np.float32).T
         else:
-            return np.array([1/2 * state[0] + action, 1/2 * state[1]], dtype = np.float32)
+            return np.array([1/2 * state[0] + action[0], 1/2 * state[1]], dtype = np.float32)
     
 
 class SimpleOCPwoControl(SimpleOCPwithControl, gym.Env):
