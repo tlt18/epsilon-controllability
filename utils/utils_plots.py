@@ -3,7 +3,7 @@ import os
 
 import matplotlib.pyplot as plt
 
-FILEPATH =  os.path.dirname(os.path.abspath(__file__))
+FILEPATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 class PlotUtils():
     def __init__(
@@ -11,29 +11,31 @@ class PlotUtils():
             obs_space, 
             action_space,
             orgin_radius,
-            date_time
+            fig_title,
+            backward_plot_interval=100,
         ):
         self.obs_space = obs_space
         self.action_space = action_space
         self.backward_counter = 0
         self.orgin_radius = orgin_radius
-        self.data_time = date_time
+        self.fig_title = fig_title
+        self.backward_plot_interval = backward_plot_interval
 
     def set_orgin_state(self, orgin_state):
         self.orgin_state = orgin_state
 
-    def plot_epsilon_controllable_list(self, epsilon_controllable_list: List):
+    def plot_epsilon_controllable_list(self, epsilon_controllable_list: List, expand_counter: int):
         plt.figure()
         plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
         plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
         for neighbor in epsilon_controllable_list:
-            print("centered_state: {}, radius: {}".format(neighbor.centered_state, neighbor.radius))
+            # print("centered_state: {}, radius: {}".format(neighbor.centered_state, neighbor.radius))
             circle = plt.Circle(neighbor.centered_state, neighbor.radius, color='r', fill=False)
             plt.gca().add_patch(circle)
         plt.axis('equal')
         plt.xlabel("state1")
         plt.ylabel("state2")
-        plt.savefig(os.path.join(FILEPATH, f"figs/{self.data_time}/epsilon_controllable_list.png"))
+        plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/epsilon_controllable_set/{expand_counter}.png"))
         plt.close()
 
     def plot_backward(self, state, r, next_state, next_r, fig=None, ax=None):
@@ -57,12 +59,10 @@ class PlotUtils():
         ax.add_patch(circle)
         ax.set_xlabel("state1")
         ax.set_ylabel("state2")
-
         # save figure
+        if self.backward_counter%self.backward_plot_interval == 0:
+            plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/expand_backward/{self.backward_counter}.png"))
         self.backward_counter += 1
-        # print("plot count: {}, expand state: {}, last state: {}".format(self.backward_counter, state, next_state))
-        if self.backward_counter%1 == 0:
-            plt.savefig(os.path.join(FILEPATH, f"figs/{self.data_time}/epsilon_controllable_list_{self.backward_counter}.png"))
         return fig, ax
     
     def plot_sample(self, sample_list: List):
@@ -86,5 +86,5 @@ class PlotUtils():
         plt.axis('equal')
         plt.xlabel("state1")
         plt.ylabel("state2")
-        plt.savefig(os.path.join(FILEPATH, f"figs/{self.data_time}/sample.png"))
+        plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/sample.png"))
         plt.close()

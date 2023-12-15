@@ -9,9 +9,11 @@ from typing import List, Optional, Tuple, Union
 from cvxopt import solvers, matrix
 import gym
 import numpy as np
+from sklearn.neighbors import KDTree
 
 from buffer import Buffer
-from utils_plots import PlotUtils, FILEPATH
+from utils.utils_plots import PlotUtils, FILEPATH
+from utils.timeit import timeit, Timeit
 
 
 @dataclass
@@ -43,23 +45,41 @@ class Transition:
 
 
 class  ControllabilityTest:
-    def __init__(self, env: gym.Env , buffer: Buffer, num_sample: int = 10000, epsilon: float = 0.05, lipschitz_confidence: float = 1, plot_flag = False):
+    def __init__(
+            self, 
+            env: gym.Env , 
+            buffer: Buffer, 
+            num_sample: int = 10000, 
+            epsilon: float = 0.05, 
+            lipschitz_confidence: float = 1,
+            use_kd_tree: bool = False,
+            expand_plot_interval: int = 1, 
+            backward_plot_interval: int = 100,
+            plot_flag: bool = False
+        ):
         self.env = env
         self.buffer = buffer
         self.num_sample = num_sample
         self.epsilon = epsilon
         self.lipschitz_confidence = lipschitz_confidence
+        self.use_kd_tree = use_kd_tree
+        self.expand_plot_interval = expand_plot_interval
         self.plot_flag = plot_flag
         self.epsilon_controllable_list: List[NeighbourSet] = []
-        date_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        os.mkdir(FILEPATH + f"/figs/{date_time}")
-        self.plot_utils = PlotUtils(
+
+        fig_title = f"{num_sample}samples-{epsilon}epsilon-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        os.makedirs(FILEPATH + f"/figs/{fig_title}/epsilon_controllable_set", exist_ok=True)
+        os.makedirs(FILEPATH + f"/figs/{fig_title}/expand_backward", exist_ok=True)
+        self.plot_utils: PlotUtils = PlotUtils(
             obs_space = self.env.observation_space, 
             action_space = self.env.action_space,
             orgin_radius = self.epsilon,
-            date_time = date_time,
+            fig_title = fig_title,
+            backward_plot_interval = backward_plot_interval,
         )
         self.dataset = None
+        self.state_kdtree: KDTree = None
+        self.next_state_kdtree: KDTree = None
         
     def sample(self):
         state = self.env.reset()
@@ -69,6 +89,9 @@ class  ControllabilityTest:
             self.buffer.add((state, action, reward, next_state, done))
             state = self.env.reset() if done else next_state
         self.dataset = Transition(*self.buffer.get_data())
+        if self.use_kd_tree:
+            self.state_kdtree = KDTree(self.dataset.state, leaf_size=40, metric='euclidean')
+            self.next_state_kdtree = KDTree(self.dataset.next_state, leaf_size=40, metric='euclidean')
 
     def backward_expand(self, neighbor: NeighbourSet) -> Tuple[List[NeighbourSet], List[NeighbourSet]]:
         '''
@@ -79,7 +102,10 @@ class  ControllabilityTest:
         neighbor.visited = True
         
         # Step 1: Find all the states in the buffer that belong to the neighborhood set
-        data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.next_state, neighbor.centered_state) <= neighbor.radius])
+        if self.use_kd_tree:
+            data_in_neighbourhood = deepcopy(self.dataset[self.next_state_kdtree.query_radius(neighbor.centered_state.reshape(1, -1), neighbor.radius).item()])
+        else:
+            data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.next_state, neighbor.centered_state) <= neighbor.radius])
 
         # Step 2: one-step backward expand
         if len(data_in_neighbourhood) == 0:
@@ -108,7 +134,7 @@ class  ControllabilityTest:
         :param state (np.ndarray): the state to be tested
         '''
         assert len(self.epsilon_controllable_list) == 0, "The epsilon controllable list is not empty!"
-        count = 0
+        expand_counter = 0
         fig, ax = None, None
         self.plot_utils.set_orgin_state(state)
 
@@ -141,9 +167,11 @@ class  ControllabilityTest:
                                 fig=fig,
                                 ax=ax
                             )
-                    count += 1
+                    if self.plot_flag and expand_counter%self.expand_plot_interval == 0:
+                        self.plot_utils.plot_epsilon_controllable_list(self.epsilon_controllable_list, expand_counter)
+                    expand_counter += 1
                     print("expand count: {}, new_neighbor_num: {}, total_controllable_num: {}"
-                        .format(count, len(expand_neighbor_list), len(self.epsilon_controllable_list))
+                        .format(expand_counter, len(expand_neighbor_list), len(self.epsilon_controllable_list))
                     )
 
     def run(self, state: np.ndarray):
@@ -152,15 +180,15 @@ class  ControllabilityTest:
         time_sample = time.time() - time_start
         print("time for sampling: {:.4f}s".format(time_sample))
 
-        self.plot_utils.plot_sample(self.buffer.buffer)
-        time_plot = time.time() - time_start - time_sample
-        print("time for plotting: {:.4f}s".format(time_plot))
+        if self.plot_flag:
+            self.plot_utils.plot_sample(self.buffer.buffer)
+            time_plot = time.time() - time_start - time_sample
+            print("time for plotting: {:.4f}s".format(time_plot))
 
         self.get_epsilon_controllable_set(state)
         time_calonestep = time.time() - time_start - time_sample - time_plot
         print("time for calculating epsilon controllable set: {:.4f}s".format(time_calonestep))
 
-        self.plot_utils.plot_sample(self.buffer.buffer)
 
     def check_expand_neighbor_relation(self, expand_neighbor: NeighbourSet) -> Tuple[Optional[str], List[int]]:
         idx_list = []
@@ -176,7 +204,10 @@ class  ControllabilityTest:
             return None, [-1]
 
     def lipschitz_fx(self, data: Transition) -> float:
-        data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, data.state) <= self.lipschitz_confidence])
+        if self.use_kd_tree:
+            data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(data.state.reshape(1, -1), self.lipschitz_confidence).item()])
+        else:
+            data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, data.state) <= self.lipschitz_confidence])
         # only Lx
         # return max([(next_state - data.next_state) / (state - data.state) for data in data_in_neighbourhood])
 
