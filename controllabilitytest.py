@@ -103,8 +103,9 @@ class  ControllabilityTest:
         self.epsilon_controllable_set: NeighbourSet = None
 
         fig_title = f"{num_sample}samples-{epsilon}epsilon-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        os.makedirs(FILEPATH + f"/figs/{fig_title}/epsilon_controllable_set", exist_ok=True)
-        os.makedirs(FILEPATH + f"/figs/{fig_title}/expand_backward", exist_ok=True)
+        if self.plot_flag:
+            os.makedirs(FILEPATH + f"/figs/{fig_title}/epsilon_controllable_set", exist_ok=True)
+            os.makedirs(FILEPATH + f"/figs/{fig_title}/expand_backward", exist_ok=True)
         self.plot_utils: PlotUtils = PlotUtils(
             obs_space = self.env.observation_space, 
             action_space = self.env.action_space,
@@ -150,7 +151,7 @@ class  ControllabilityTest:
                 centered_state = data_in_neighbourhood.state,
                 radius = np.minimum(
                     self.lipschitz_confidence, 
-                    (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) / self.lipschitz_fx(data_in_neighbourhood)
+                    (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) / self.lipschitz_fx_sampling(data_in_neighbourhood.state)
                 ),
                 visited=np.zeros(len(data_in_neighbourhood), dtype=bool),
             ), NeighbourSet(
@@ -185,8 +186,8 @@ class  ControllabilityTest:
                         if relation == None:
                             self.epsilon_controllable_set.append(expand_neighbor)
                         elif relation == "set_in_expand":
-                            # If you use fliter, only the elements after the current point are deleted, 
-                            # Pro: overwritten neighbors are removed from the collection, 
+                            # If you do not use fliter, only the elements after the current point are deleted.
+                            # Pro: overwritten neighbors are removed from the collection.
                             # Con: the iteration starts from the beginning after the iteration ends.
                             # idx_inlist = list(filter(lambda x: x > idx_set, idx_inlist))
 
@@ -276,18 +277,20 @@ class  ControllabilityTest:
         # calculate the lipschitz constant of the dynamics function at state within self.lipschitz_confidence
         unbatched = len(state.shape) == 1
         if unbatched == 1:
-            states = states[None, :]
-            actions = actions[None, :]
+            states = state[None, :]
+        else:
+            states = state
         batch_size, state_dim = states.shape
         Lx = np.zeros(batch_size)
         # sample state and action
         for _ in range(10):
-            sample_action = self.env.action_space.sample()
+            sample_action = self.env.action_space.sample().repeat(batch_size, axis=0)
             sample_state = np.random.randn(state_dim)
             sample_state = sample_state / np.linalg.norm(sample_state, ord=2) * np.random.uniform(0.0001, self.lipschitz_confidence)
-            Lx = np.maximum(Lx, self.jacobi_atx(state + sample_state, sample_action))
+            Lx = np.maximum(Lx, self.jacobi_atx(states + sample_state, sample_action))
         if unbatched:
             Lx = Lx[0]
+        print(f'Lx: {Lx}')
         return Lx
     
     def jacobi_atx(self, state: np.ndarray, action: np.ndarray) -> np.ndarray:
@@ -295,8 +298,11 @@ class  ControllabilityTest:
         # TODO: check whether this function support unbatched data
         unbatched = len(state.shape) == 1
         if unbatched:
-            states = states[None, :]
-            actions = actions[None, :]
+            states = state[None, :]
+            actions = action[None, :]
+        else:
+            states = state
+            actions = action
         batch_size, state_dim = states.shape
         delta_d = 0.001
         lipschitz_x = np.zeros((batch_size, state_dim, state_dim))
