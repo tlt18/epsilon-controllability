@@ -266,7 +266,7 @@ class  ControllabilityTest:
                 data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= self.lipschitz_confidence])
 
             # only Lx
-            # return max([(next_state - data.next_state) / (state - data.state) for data in data_in_neighbourhood])
+            # lipschitz_x[idx] = max(self.distance(single_transition.next_state, data_in_neighbourhood.next_state) / self.distance(single_transition.state, data_in_neighbourhood.state))
 
             # Lx and Lu
             next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, data.next_state))
@@ -277,7 +277,7 @@ class  ControllabilityTest:
             # solve QP: min Lx**2 + Lu**2, s.t. next_state_dist<=Lx*state_dist+Lu*action_dist
             P = cvxopt.matrix([
                 [1.0, 0.0], 
-                [0.0, 0.8]
+                [0.0, 1.0]
             ])
             q = cvxopt.matrix([0.0, 0.0])
             h = cvxopt.matrix(next_state_negdist.astype(np.double))
@@ -296,7 +296,7 @@ class  ControllabilityTest:
 
     def lipschitz_fx_sampling(self, state: np.ndarray) -> np.ndarray:
         # calculate the lipschitz constant of the dynamics function at state within self.lipschitz_confidence
-        sample_num = 10
+        sample_num = 100
         unbatched = len(state.shape) == 1
         if unbatched == 1:
             states = state[None, :]

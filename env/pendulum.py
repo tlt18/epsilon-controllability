@@ -96,7 +96,7 @@ class PendulumwoControl(Pendulum):
         next_state = np.array([
             state[:, 0] + state[:, 1] * self.dt, 
             state[:, 1] + (- self.param["g"] / self.param["l"] * np.sin(state[:, 0]) - \
-                self.param["f"] / self.param["m"] * self.state[:, 1]) * self.dt
+                self.param["f"] / self.param["m"] * state[:, 1]) * self.dt
             ], dtype = np.float32
         )
         if unbatched:
