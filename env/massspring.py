@@ -3,7 +3,7 @@ from typing import Optional
 from gym import spaces
 import numpy as np
 
-from env_base import BaseEnv
+from env.env_base import BaseEnv
 
 
 class MassSpring(BaseEnv):
