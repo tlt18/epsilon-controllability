@@ -3,10 +3,9 @@ from copy import deepcopy
 from dataclasses import dataclass
 import datetime
 import os
-import time
 from typing import List, Optional, Tuple, Union
 
-from cvxopt import solvers, matrix
+import cvxopt
 import gym
 import numpy as np
 from sklearn.neighbors import KDTree
@@ -16,6 +15,9 @@ from utils.utils_plots import PlotUtils, FILEPATH
 from utils.timeit import timeit, Timeit
 
 
+cvxopt.solvers.options['show_progress'] = False
+
+
 @dataclass
 class NeighbourSet:
     centered_state: np.ndarray
@@ -23,7 +25,7 @@ class NeighbourSet:
     visited: Union[bool, np.ndarray] = False
 
     @staticmethod
-    def batch(neighbor_list: List["NeighbourSet"]) -> 'NeighbourSet':
+    def batch(neighbor_list: List["NeighbourSet"]) -> "NeighbourSet":
         return NeighbourSet(
             centered_state = np.array([neighbor.centered_state for neighbor in neighbor_list]),
             radius = np.array([neighbor.radius for neighbor in neighbor_list]),
@@ -69,6 +71,9 @@ class Transition:
         self.next_state = next_state
 
     def __len__(self):
+        assert len(self.state) > 0, "The data must be batched!"
+        assert len(self.state) == len(self.action) == len(self.next_state), \
+            "The length of state, action and next_state are not equal!"
         return len(self.state)
     
     def __getitem__(self, index):
@@ -76,6 +81,14 @@ class Transition:
             state = self.state[index],
             action = self.action[index],
             next_state = self.next_state[index],
+        )
+
+    @staticmethod
+    def batch(transitionList: List["Transition"]) -> "Transition":
+        return Transition(
+            state = np.array([transition.state for transition in transitionList]),
+            action = np.array([transition.action for transition in transitionList]),
+            next_state = np.array([transition.next_state for transition in transitionList]),
         )
 
 
@@ -217,7 +230,6 @@ class  ControllabilityTest:
             self.plot_utils.save_figs(fig, ax)
         self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, -1)
 
-
     def run(self, state: np.ndarray):
         with Timeit("sample time"):
             self.sample()
@@ -226,7 +238,6 @@ class  ControllabilityTest:
             self.get_epsilon_controllable_set(state)
 
         self.plot_utils.plot_sample(self.buffer.buffer)
-
 
     def check_expand_neighbor_relation(self, expand_neighbor: NeighbourSet) -> Tuple[Optional[str], Optional[np.ndarray]]:
         dist = self.distance(expand_neighbor.centered_state, self.epsilon_controllable_set.centered_state)
@@ -243,31 +254,45 @@ class  ControllabilityTest:
 
     def lipschitz_fx(self, data: Transition) -> Union[float, np.ndarray]:
         # TODO: support batched data
-        return np.ones(len(data))
+        unbatched = len(data.state.shape) == 1
+        if unbatched:
+            data = Transition.batch([data])
 
-        if self.use_kd_tree:
-            data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(data.state.reshape(1, -1), self.lipschitz_confidence).item()])
-        else:
-            data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, data.state) <= self.lipschitz_confidence])
-        # only Lx
-        # return max([(next_state - data.next_state) / (state - data.state) for data in data_in_neighbourhood])
-        
+        lipschitz_x = np.zeros(len(data))
+        for idx, single_transition in enumerate(data):
+            if self.use_kd_tree:
+                data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(single_transition.state.reshape(1, -1), self.lipschitz_confidence).item()])
+            else:
+                data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= self.lipschitz_confidence])
 
-        # Lx and Lu
-        next_state_dist =[float(-distance) for distance in self.distance(data_in_neighbourhood.next_state, data.next_state)]
-        states_dist = [[float(-self.distance(data_unit.state,data.state)),
-                        float(-self.distance(data_unit.action,data.action))] for data_unit in data_in_neighbourhood]
+            # only Lx
+            # return max([(next_state - data.next_state) / (state - data.state) for data in data_in_neighbourhood])
 
-        # solve QP: min Lx**2 + Lu**2, s.t. next_state_dist<=Lx*state_dist+Lu*action_dist
-        time_start = time.time()
-        P = matrix([[1.0, 0.0], [0.0, 1.0]])
-        q = matrix([0.0, 0.0])
-        h = matrix([next_state_dist])
-        G = matrix(states_dist).T
-        solution = solvers.qp(P, q, G, h)
-        x = np.array(solution['x'])
-        print(f'cost:qp_solving:{time.time() - time_start:.4f}s')
-        return x[0]
+            # Lx and Lu
+            next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, data.next_state))
+            states_negdist = - self.distance(data_in_neighbourhood.state, data.state)
+            actions_negdist = - self.distance(data_in_neighbourhood.action, data.action)
+            concat_negdist = np.stack([states_negdist, actions_negdist], axis = 0)
+
+            # solve QP: min Lx**2 + Lu**2, s.t. next_state_dist<=Lx*state_dist+Lu*action_dist
+            P = cvxopt.matrix([
+                [1.0, 0.0], 
+                [0.0, 0.8]
+            ])
+            q = cvxopt.matrix([0.0, 0.0])
+            h = cvxopt.matrix(next_state_negdist.astype(np.double))
+            G = cvxopt.matrix(concat_negdist.astype(np.double)).T
+
+            '''
+            minimize    (1/2)*x'*P*x + q'*x
+            subject to  G*x <= h
+                        A*x = b.
+            '''
+            solution = cvxopt.solvers.qp(P, q, G, h)
+            lipschitz_x[idx] = solution['x'][0]
+        if unbatched:
+            lipschitz_x = lipschitz_x[0]
+        return lipschitz_x
 
     def lipschitz_fx_sampling(self, state: np.ndarray) -> np.ndarray:
         # calculate the lipschitz constant of the dynamics function at state within self.lipschitz_confidence
