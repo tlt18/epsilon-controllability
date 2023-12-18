@@ -3,16 +3,16 @@ from typing import Optional
 from gym import spaces
 import numpy as np
 
-from env_base import BaseEnv
+from env.env_base import BaseEnv
 
 
-class SimpleOCPwithControl(BaseEnv):
+class SimpleOCP(BaseEnv):
     def __init__(self, seed: Optional[int] = None, max_step: int = 20):
-        super().__init__(seed, max_step)
         self.action_space = spaces.Box(low=-0.2, high=0.2, shape=(1, ), dtype=np.float32)
         low = np.array([-1.0, -1.0], dtype=np.float32)
         high = np.array([1.0, 1.0], dtype=np.float32)
         self.observation_space = spaces.Box(low=low, high=high, shape=(2, ), dtype=np.float32)
+        super().__init__(seed, max_step)
 
     def step(self, action):
         self.state = self.get_next_state(action)
@@ -41,7 +41,7 @@ class SimpleOCPwithControl(BaseEnv):
         return next_state
 
 
-class SimpleOCPwoControl(SimpleOCPwithControl):
+class SimpleOCPwoControl(SimpleOCP):
     def __init__(self, seed: int = None, max_step: int = 20):
         super().__init__(seed, max_step)
         self.action_space = spaces.Box(low=-0.0, high=0.0, shape=(1, ), dtype=np.float32)

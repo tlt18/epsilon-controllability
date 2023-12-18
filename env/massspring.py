@@ -13,14 +13,13 @@ class MassSpring(BaseEnv):
         low = np.array([-1, -1], dtype=np.float32)
         high = np.array([1, 1], dtype=np.float32)
         self.observation_space = spaces.Box(low=low, high=high, shape=(2, ), dtype=np.float32)
-        self.max_step = max_step
-        self.seed(seed)
         self.param = {
             'm': 1.0,
             'k': 1.0,
             'rho': 0.8,
         }
         self.dt = 0.1
+        super().__init__(seed, max_step)
 
     def step(self, action):
         self.state = self.get_next_state(action)
