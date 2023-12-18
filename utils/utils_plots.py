@@ -24,15 +24,15 @@ class PlotUtils():
     def set_orgin_state(self, orgin_state):
         self.orgin_state = orgin_state
 
-    def plot_epsilon_controllable_list(self, epsilon_controllable_list: List, expand_counter: int):
+    def plot_epsilon_controllable_set(self, epsilon_controllable_list, expand_counter: int):
         plt.figure()
-        plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
-        plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
         for neighbor in epsilon_controllable_list:
             # print("centered_state: {}, radius: {}".format(neighbor.centered_state, neighbor.radius))
-            circle = plt.Circle(neighbor.centered_state, neighbor.radius, color='r', fill=False)
+            circle = plt.Circle(neighbor.centered_state, neighbor.radius, color='dodgerblue', fill=True, alpha=0.2)
             plt.gca().add_patch(circle)
         plt.axis('equal')
+        plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
+        plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
         plt.xlabel("state1")
         plt.ylabel("state2")
         plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/epsilon_controllable_set/{expand_counter}.png"))
@@ -47,10 +47,10 @@ class PlotUtils():
             assert hasattr(self, "orgin_state"), "Please set orgin state first!"
             circle = plt.Circle(self.orgin_state, self.orgin_radius, color='k', fill=False)
             ax.add_patch(circle)
-            # ax.set_xlim([self.obs_space.low[0], self.obs_space.high[0]])
-            # ax.set_ylim([self.obs_space.low[1], self.obs_space.high[1]])
+            ax.set_xlim([self.obs_space.low[0], self.obs_space.high[0]])
+            ax.set_ylim([self.obs_space.low[1], self.obs_space.high[1]])
         # plot line between state and next_state
-        ax.plot([state[0], next_state[0]], [state[1], next_state[1]], color='lightgray')
+        ax.plot([state[0], next_state[0]], [state[1], next_state[1]], color='lightgray', alpha=0.5, linewidth=0.5)
         # plot circle at state with radius r
         circle = plt.Circle(state, r, color='red', fill=False)
         ax.add_patch(circle)

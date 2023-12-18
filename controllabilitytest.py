@@ -85,8 +85,8 @@ class  ControllabilityTest:
             env: gym.Env , 
             buffer: Buffer, 
             num_sample: int = 10000, 
-            epsilon: float = 0.05, 
-            lipschitz_confidence: float = 1,
+            epsilon: float = 0.1, 
+            lipschitz_confidence: float = 0.2,
             use_kd_tree: bool = False,
             expand_plot_interval: int = 1, 
             backward_plot_interval: int = 100,
@@ -102,9 +102,10 @@ class  ControllabilityTest:
         self.plot_flag = plot_flag
         self.epsilon_controllable_set: NeighbourSet = None
 
-        fig_title = f"{num_sample}samples-{epsilon}epsilon-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        env_name = env.__class__.__name__
+        fig_title = f"{env_name}-{num_sample}samples-{epsilon}epsilon-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        os.makedirs(FILEPATH + f"/figs/{fig_title}/epsilon_controllable_set", exist_ok=True)
         if self.plot_flag:
-            os.makedirs(FILEPATH + f"/figs/{fig_title}/epsilon_controllable_set", exist_ok=True)
             os.makedirs(FILEPATH + f"/figs/{fig_title}/expand_backward", exist_ok=True)
         self.plot_utils: PlotUtils = PlotUtils(
             obs_space = self.env.observation_space, 
@@ -190,7 +191,7 @@ class  ControllabilityTest:
                             # If you do not use fliter, only the elements after the current point are deleted.
                             # Pro: overwritten neighbors are removed from the collection.
                             # Con: the iteration starts from the beginning after the iteration ends.
-                            # idx_inlist = list(filter(lambda x: x > idx_set, idx_inlist))
+                            idx_inlist = list(filter(lambda x: x > idx_set, idx_inlist))
 
                             del self.epsilon_controllable_set[idx_inlist]
                             self.epsilon_controllable_set.append(expand_neighbor)
@@ -206,27 +207,26 @@ class  ControllabilityTest:
                                 ax=ax
                             )
                     if self.plot_flag and expand_counter%self.expand_plot_interval == 0:
-                        self.plot_utils.plot_epsilon_controllable_list(self.epsilon_controllable_set, expand_counter)
+                        self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter)
                     expand_counter += 1
                     print("index in set: {}, expand count: {}, new_neighbor_num: {}, total_controllable_num: {}"
                         .format(idx_set, expand_counter, len(expand_neighbor_set), len(self.epsilon_controllable_set))
                     )
                 idx_set += 1
         if self.plot_flag:
-            self.plot_utils.plot_epsilon_controllable_list(self.epsilon_controllable_set, -1)
             self.plot_utils.save_figs(fig, ax)
+        self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, -1)
 
 
     def run(self, state: np.ndarray):
         with Timeit("sample time"):
             self.sample()
 
-        if self.plot_flag:
-            with Timeit("plot sample time"):
-                self.plot_utils.plot_sample(self.buffer.buffer)
-
         with Timeit("calculate epsilon controllable set time"):
             self.get_epsilon_controllable_set(state)
+
+        self.plot_utils.plot_sample(self.buffer.buffer)
+
 
     def check_expand_neighbor_relation(self, expand_neighbor: NeighbourSet) -> Tuple[Optional[str], Optional[np.ndarray]]:
         dist = self.distance(expand_neighbor.centered_state, self.epsilon_controllable_set.centered_state)
