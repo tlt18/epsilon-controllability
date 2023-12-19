@@ -56,13 +56,12 @@ class Pendulum(BaseEnv):
         if unbatched:
             state = state[None, :]
             action = action[None, :]
-        next_state = np.array([
+        next_state = np.stack([
             state[:, 0] + state[:, 1] * self.dt, 
             state[:, 1] + (- self.param["g"] / self.param["l"] * np.sin(state[:, 0]) - \
                 self.param["f"] / self.param["m"] * state[:, 1] + \
                 action[:, 0] / (self.param["m"] * self.param["l"] ** 2)) * self.dt
-            ], dtype = np.float32
-        )
+            ], axis=1)
         if unbatched:
             next_state = next_state[0]
         return next_state
@@ -93,12 +92,11 @@ class PendulumwoControl(Pendulum):
         unbatched = len(state.shape) == 1
         if unbatched:
             state = state[None, :]
-        next_state = np.array([
+        next_state = np.stack([
             state[:, 0] + state[:, 1] * self.dt, 
             state[:, 1] + (- self.param["g"] / self.param["l"] * np.sin(state[:, 0]) - \
                 self.param["f"] / self.param["m"] * state[:, 1]) * self.dt
-            ], dtype = np.float32
-        )
+            ], axis=1)
         if unbatched:
             next_state = next_state[0]
         return next_state

@@ -35,7 +35,10 @@ class SimpleOCP(BaseEnv):
         if unbatched:
             state = state[None, :]
             action = action[None, :]
-        next_state = np.array([1/2 * state[:, 0] + action[:, 0], 1/2 * state[:, 1]], dtype = np.float32).T
+        next_state = np.stack([
+            1/2 * state[:, 0] + action[:, 0], 
+            1/2 * state[:, 1]
+        ], axis=1)
         if unbatched:
             next_state = next_state[0]
         return next_state
@@ -53,7 +56,10 @@ class SimpleOCPwoControl(SimpleOCP):
         unbatched = len(state.shape) == 1
         if unbatched:
             state = state[None, :]
-        next_state = np.array([1/2 * state[:, 0], 1/2 * state[:, 1]], dtype = np.float32).T
+        next_state = np.stack([
+            1/2 * state[:, 0], 
+            1/2 * state[:, 1]
+        ], axis=1)
         if unbatched:
             next_state = next_state[0]
         return next_state

@@ -54,11 +54,10 @@ class MassSpring(BaseEnv):
         if unbatched:
             state = state[None, :]
             action = action[None, :]
-        next_state = np.array([
+        next_state = np.stack([
             state[:, 0] + state[:, 1] * self.dt, 
             state[:, 1] + (-self.param['k'] * state[:, 0] - self.param['rho'] * state[:, 1] + action[:, 0]) / self.param['m'] * self.dt
-            ], dtype = np.float32
-        ).T
+            ], axis=1)
         if unbatched:
             next_state = next_state[0]
         return next_state
@@ -80,11 +79,10 @@ class MassSpringwoControl(MassSpring):
         unbatched = len(state.shape) == 1
         if unbatched:
             state = state[None, :]
-        next_state = np.array([
+        next_state = np.stack([
             state[:, 0] + state[:, 1] * self.dt, 
             state[:, 1] + (-self.param['k'] * state[:, 0] - self.param['rho'] * state[:, 1]) / self.param['m'] * self.dt
-            ], dtype = np.float32
-        ).T
+            ], axis=1)
         if unbatched:
             next_state = next_state[0]
         return next_state
