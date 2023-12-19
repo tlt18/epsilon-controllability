@@ -71,7 +71,7 @@ class Transition:
         self.next_state = next_state
 
     def __len__(self):
-        assert len(self.state) > 0, "The data must be batched!"
+        assert len(self.state.shape) > 0, "The data must be batched!"
         assert len(self.state) == len(self.action) == len(self.next_state), \
             "The length of state, action and next_state are not equal!"
         return len(self.state)
@@ -97,8 +97,9 @@ class  ControllabilityTest:
             self, 
             env: gym.Env , 
             buffer: Buffer, 
-            num_sample: int = 10000, 
-            epsilon: float = 0.1, 
+            target_state: np.ndarray,
+            epsilon: float = 0.1,
+            num_sample: int = 10000,
             lipschitz_confidence: float = 0.2,
             use_kd_tree: bool = False,
             expand_plot_interval: int = 1, 
@@ -108,6 +109,7 @@ class  ControllabilityTest:
         self.env = env
         self.buffer = buffer
         self.num_sample = num_sample
+        self.target_state = target_state
         self.epsilon = epsilon
         self.lipschitz_confidence = lipschitz_confidence
         self.use_kd_tree = use_kd_tree
@@ -116,15 +118,12 @@ class  ControllabilityTest:
         self.epsilon_controllable_set: NeighbourSet = None
 
         env_name = env.__class__.__name__
-        fig_title = f"{env_name}-{num_sample}samples-{epsilon}epsilon-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        os.makedirs(FILEPATH + f"/figs/{fig_title}/epsilon_controllable_set", exist_ok=True)
-        if self.plot_flag:
-            os.makedirs(FILEPATH + f"/figs/{fig_title}/expand_backward", exist_ok=True)
+        self.fig_title = f"{env_name}/{target_state}state-{epsilon}epsilon-{num_sample}samples-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.plot_utils: PlotUtils = PlotUtils(
             obs_space = self.env.observation_space, 
             action_space = self.env.action_space,
             orgin_radius = self.epsilon,
-            fig_title = fig_title,
+            fig_title = self.fig_title,
             backward_plot_interval = backward_plot_interval,
         )
         self.dataset = None
@@ -166,7 +165,7 @@ class  ControllabilityTest:
                 radius = np.minimum(
                     self.lipschitz_confidence, 
                     (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) /\
-                    self.lipschitz_fx_sampling(data_in_neighbourhood.state)
+                    self.lipschitz_fx_sampling(data_in_neighbourhood.state, data_in_neighbourhood.action)
                 ),
                 visited=np.zeros(len(data_in_neighbourhood), dtype=bool),
             ), NeighbourSet(
@@ -175,7 +174,7 @@ class  ControllabilityTest:
                 visited=np.zeros(len(data_in_neighbourhood), dtype=bool),
             )
 
-    def get_epsilon_controllable_set(self, state: np.ndarray):
+    def get_epsilon_controllable_set(self, state: np.ndarray, epsilon: float):
         '''
         :param state (np.ndarray): the state to be tested
         '''
@@ -184,7 +183,7 @@ class  ControllabilityTest:
         fig, ax = None, None
         self.plot_utils.set_orgin_state(state)
 
-        self.epsilon_controllable_set = NeighbourSet.batch([NeighbourSet(state, self.epsilon)])
+        self.epsilon_controllable_set = NeighbourSet.batch([NeighbourSet(state, epsilon)])
         # until all the neighbor sets are visited
         while not all([neighbor.visited for neighbor in self.epsilon_controllable_set]):
             idx_set = 0
@@ -230,12 +229,16 @@ class  ControllabilityTest:
             self.plot_utils.save_figs(fig, ax)
         self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, -1)
 
-    def run(self, state: np.ndarray):
+    def run(self):
+        os.makedirs(FILEPATH + f"/figs/{self.fig_title}/epsilon_controllable_set", exist_ok=True)
+        if self.plot_flag:
+            os.makedirs(FILEPATH + f"/figs/{self.fig_title}/expand_backward", exist_ok=True)
+
         with Timeit("sample time"):
             self.sample()
 
         with Timeit("calculate epsilon controllable set time"):
-            self.get_epsilon_controllable_set(state)
+            self.get_epsilon_controllable_set(self.target_state, self.epsilon)
 
         self.plot_utils.plot_sample(self.buffer.buffer)
 
@@ -294,20 +297,16 @@ class  ControllabilityTest:
             lipschitz_x = lipschitz_x[0]
         return lipschitz_x
 
-    def lipschitz_fx_sampling(self, state: np.ndarray) -> np.ndarray:
+    def lipschitz_fx_sampling(self, state: np.ndarray, action: np.ndarray) -> np.ndarray:
         # calculate the lipschitz constant of the dynamics function at state within self.lipschitz_confidence
-        sample_num = 100
+        sample_num = 10
         unbatched = len(state.shape) == 1
         if unbatched == 1:
             states = state[None, :]
         else:
             states = state
         batch_size, state_dim = states.shape
-        # sample state and action
-        sample_actions = np.array([
-            self.env.action_space.sample() 
-            for _ in range(sample_num)
-        ])[:, None, :].repeat(batch_size, axis=1)
+        # sample state
         sample_delta_states = np.random.randn(sample_num, batch_size, state_dim)
         sample_delta_states = sample_delta_states / \
             np.linalg.norm(sample_delta_states, axis=2, keepdims=True) * \
@@ -315,9 +314,9 @@ class  ControllabilityTest:
         # sample_delta_states: [sample_num, batch_size, state_dim]
         # states: [batch_size, state_dim]
         sample_states = (sample_delta_states + states[None, :]).reshape(-1, state_dim)
-        sample_actions = sample_actions.reshape(-1, self.env.action_space.shape[0])
+        actions = action[None, :].repeat(sample_num, axis=0).reshape(-1, self.env.action_space.shape[0])
 
-        Lx = self.jacobi_atx(sample_states, sample_actions).reshape(sample_num, batch_size)
+        Lx = self.jacobi_atx(sample_states, actions).reshape(sample_num, batch_size)
         Lx = np.max(Lx, axis=0)
         if unbatched:
             Lx = Lx[0]

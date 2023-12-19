@@ -10,19 +10,21 @@ import numpy as np
 if __name__ == "__main__":
     num_sample = 10000
     epsilon = 0.05
+    target_state = None
 
     env = Pendulum(seed=1)
     buffer = Buffer(buffer_size = num_sample)
     test = ControllabilityTest(
         env = env,
         buffer = buffer,
-        num_sample = num_sample,
+        target_state = target_state,
         epsilon = epsilon, 
+        num_sample = num_sample,
         lipschitz_confidence = 0.2,
         use_kd_tree = True,
         expand_plot_interval = 1000, 
         backward_plot_interval = 10000000000,
-        plot_flag = True,
+        plot_flag = False,
     )
     test.sample()
 
@@ -35,7 +37,7 @@ if __name__ == "__main__":
             action = action,
             next_state = next_state,
         )
-        lips_by_sample = test.lipschitz_fx_sampling(state)
+        lips_by_sample = test.lipschitz_fx_sampling(state, action)
         lips_by_opt = test.lipschitz_fx(transition)
         print("-" * 50)
         print(f"lips_by_sample: {lips_by_sample}, lips_by_opt: {lips_by_opt}")
