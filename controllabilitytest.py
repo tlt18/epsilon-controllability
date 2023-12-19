@@ -255,8 +255,8 @@ class  ControllabilityTest:
         
         return None, None
 
-    def lipschitz_fx(self, data: Transition) -> Union[float, np.ndarray]:
-        # TODO: support batched data
+    def lipschitz_fx_optimizing(self, data: Transition) -> np.ndarray:
+        # estimate the lipschitz constant by QP
         unbatched = len(data.state.shape) == 1
         if unbatched:
             data = Transition.batch([data])
@@ -268,10 +268,7 @@ class  ControllabilityTest:
             else:
                 data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= self.lipschitz_confidence])
 
-            # only Lx
-            # lipschitz_x[idx] = max(self.distance(single_transition.next_state, data_in_neighbourhood.next_state) / self.distance(single_transition.state, data_in_neighbourhood.state))
 
-            # Lx and Lu
             next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, data.next_state))
             states_negdist = - self.distance(data_in_neighbourhood.state, data.state)
             actions_negdist = - self.distance(data_in_neighbourhood.action, data.action)
@@ -293,6 +290,32 @@ class  ControllabilityTest:
             '''
             solution = cvxopt.solvers.qp(P, q, G, h)
             lipschitz_x[idx] = solution['x'][0]
+
+        if unbatched:
+            lipschitz_x = lipschitz_x[0]
+        return lipschitz_x
+    
+    def lipschitz_fx_overestimating(self, data: Transition) -> np.ndarray:
+        # estimate the lipschitz constant by max dist
+        unbatched = len(data.state.shape) == 1
+        if unbatched:
+            data = Transition.batch([data])
+
+        lipschitz_x = np.zeros(len(data))
+        for idx, single_transition in enumerate(data):
+            if self.use_kd_tree:
+                data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(single_transition.state.reshape(1, -1), self.lipschitz_confidence).item()])
+            else:
+                data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= self.lipschitz_confidence])
+
+            lipschitz_x[idx] = np.max(
+                self.distance(single_transition.next_state, data_in_neighbourhood.next_state) / \
+                np.max([
+                    self.distance(single_transition.state, data_in_neighbourhood.state), 
+                    self.distance(single_transition.action, data_in_neighbourhood.action)
+                ], axis=0)
+            )
+
         if unbatched:
             lipschitz_x = lipschitz_x[0]
         return lipschitz_x
