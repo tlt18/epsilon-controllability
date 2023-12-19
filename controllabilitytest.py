@@ -263,11 +263,16 @@ class  ControllabilityTest:
 
         lipschitz_x = np.zeros(len(data))
         for idx, single_transition in enumerate(data):
-            if self.use_kd_tree:
-                data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(single_transition.state.reshape(1, -1), self.lipschitz_confidence).item()])
-            else:
-                data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= self.lipschitz_confidence])
-
+            lipschitz_confidence = self.lipschitz_confidence
+            while True:
+                if self.use_kd_tree:
+                    data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(single_transition.state.reshape(1, -1), self.lipschitz_confidence).item()])
+                else:
+                    data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= self.lipschitz_confidence])
+                if len(data_in_neighbourhood) > 0:
+                    break
+                else:
+                    lipschitz_confidence *= 2
 
             next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, data.next_state))
             states_negdist = - self.distance(data_in_neighbourhood.state, data.state)
@@ -282,7 +287,6 @@ class  ControllabilityTest:
             q = cvxopt.matrix([0.0, 0.0])
             h = cvxopt.matrix(next_state_negdist.astype(np.double))
             G = cvxopt.matrix(concat_negdist.astype(np.double)).T
-
             '''
             minimize    (1/2)*x'*P*x + q'*x
             subject to  G*x <= h
@@ -303,11 +307,17 @@ class  ControllabilityTest:
 
         lipschitz_x = np.zeros(len(data))
         for idx, single_transition in enumerate(data):
-            if self.use_kd_tree:
-                data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(single_transition.state.reshape(1, -1), self.lipschitz_confidence).item()])
-            else:
-                data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= self.lipschitz_confidence])
-
+            lipschitz_confidence = self.lipschitz_confidence
+            while True:
+                if self.use_kd_tree:
+                    data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(single_transition.state.reshape(1, -1), self.lipschitz_confidence).item()])
+                else:
+                    data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= self.lipschitz_confidence])
+                if len(data_in_neighbourhood) > 0:
+                    break
+                else:
+                    lipschitz_confidence *= 2
+                    
             lipschitz_x[idx] = np.max(
                 self.distance(single_transition.next_state, data_in_neighbourhood.next_state) / \
                 np.max([
