@@ -102,6 +102,7 @@ class  ControllabilityTest:
             num_sample: int = 10000,
             lipschitz_confidence: float = 0.2,
             use_kd_tree: bool = False,
+            lips_estimate_mode: str = "sampling",
             expand_plot_interval: int = 1, 
             backward_plot_interval: int = 100,
             plot_flag: bool = False
@@ -116,9 +117,9 @@ class  ControllabilityTest:
         self.expand_plot_interval = expand_plot_interval
         self.plot_flag = plot_flag
         self.epsilon_controllable_set: NeighbourSet = None
-
-        env_name = env.__class__.__name__
-        self.fig_title = f"{env_name}/{target_state}state-{epsilon}epsilon-{num_sample}samples-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.lipschitz_fx = getattr(self, f"lipschitz_fx_{lips_estimate_mode}")
+        
+        self.fig_title = f"{env.__class__.__name__}/{target_state}state-{epsilon}epsilon-{num_sample}samples-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.plot_utils: PlotUtils = PlotUtils(
             obs_space = self.env.observation_space, 
             action_space = self.env.action_space,
@@ -266,9 +267,9 @@ class  ControllabilityTest:
             lipschitz_confidence = self.lipschitz_confidence
             while True:
                 if self.use_kd_tree:
-                    data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(single_transition.state.reshape(1, -1), self.lipschitz_confidence).item()])
+                    data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(single_transition.state.reshape(1, -1), lipschitz_confidence).item()])
                 else:
-                    data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= self.lipschitz_confidence])
+                    data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= lipschitz_confidence])
                 if len(data_in_neighbourhood) > 0:
                     break
                 else:
@@ -299,8 +300,9 @@ class  ControllabilityTest:
             lipschitz_x = lipschitz_x[0]
         return lipschitz_x
     
-    def lipschitz_fx_overestimating(self, data: Transition) -> np.ndarray:
+    def lipschitz_fx_maxdistance(self, data: Transition) -> np.ndarray:
         # estimate the lipschitz constant by max dist
+        # d(f(x1,u1), f(x2,u2)) <= L * max(d(x1,x2), d(u1,u2)) <= L * d(x1, x2) + L * d(u1, u2)
         unbatched = len(data.state.shape) == 1
         if unbatched:
             data = Transition.batch([data])
@@ -310,9 +312,9 @@ class  ControllabilityTest:
             lipschitz_confidence = self.lipschitz_confidence
             while True:
                 if self.use_kd_tree:
-                    data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(single_transition.state.reshape(1, -1), self.lipschitz_confidence).item()])
+                    data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(single_transition.state.reshape(1, -1), lipschitz_confidence).item()])
                 else:
-                    data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= self.lipschitz_confidence])
+                    data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= lipschitz_confidence])
                 if len(data_in_neighbourhood) > 0:
                     break
                 else:
@@ -330,15 +332,13 @@ class  ControllabilityTest:
             lipschitz_x = lipschitz_x[0]
         return lipschitz_x
 
-    def lipschitz_fx_sampling(self, state: np.ndarray, action: np.ndarray) -> np.ndarray:
-        # calculate the lipschitz constant of the dynamics function at state within self.lipschitz_confidence
+    def lipschitz_fx_sampling(self, data: Transition) -> np.ndarray:
+        # calculate the lipschitz constant by sampling
         sample_num = 10
-        unbatched = len(state.shape) == 1
-        if unbatched == 1:
-            states = state[None, :]
-        else:
-            states = state
-        batch_size, state_dim = states.shape
+        unbatched = len(data.state.shape) == 1
+        if unbatched:
+            data = Transition.batch([data])
+        batch_size, state_dim = data.state.shape
         # sample state
         sample_delta_states = np.random.randn(sample_num, batch_size, state_dim)
         sample_delta_states = sample_delta_states / \
@@ -346,14 +346,14 @@ class  ControllabilityTest:
             np.random.uniform(0.00001, self.lipschitz_confidence, size=(sample_num, batch_size, 1))
         # sample_delta_states: [sample_num, batch_size, state_dim]
         # states: [batch_size, state_dim]
-        sample_states = (sample_delta_states + states[None, :]).reshape(-1, state_dim)
-        actions = action[None, :].repeat(sample_num, axis=0).reshape(-1, self.env.action_space.shape[0])
+        sample_states = (sample_delta_states + data.state[None, :]).reshape(-1, state_dim)
+        actions = data.action[None, :].repeat(sample_num, axis=0).reshape(-1, self.env.action_space.shape[0])
 
         Lx = self.jacobi_atx(sample_states, actions).reshape(sample_num, batch_size)
         Lx = np.max(Lx, axis=0)
+
         if unbatched:
             Lx = Lx[0]
-        # print(f'Lx: {Lx}')
         return Lx
             
     def jacobi_atx(self, state: np.ndarray, action: np.ndarray) -> np.ndarray:
