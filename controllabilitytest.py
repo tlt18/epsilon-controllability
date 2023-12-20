@@ -342,9 +342,9 @@ class  ControllabilityTest:
             h = cvxopt.matrix(next_state_negdist.astype(np.double))
             G = cvxopt.matrix(concat_negdist.astype(np.double)).T
             '''
-            minimize    (1/2)*x'*P*x + q'*x
+            minimize     C*x
             subject to  G*x <= h
-                        A*x = b.
+            
             '''
             solution = cvxopt.solvers.lp(C, G, h)
             lipschitz_x[idx] = solution['x'][0]
