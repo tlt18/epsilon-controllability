@@ -23,9 +23,10 @@ if __name__ == "__main__":
         num_sample = num_sample,
         lipschitz_confidence = lipschitz_confidence,
         use_kd_tree = True,
-        expand_plot_interval = 1000, 
+        expand_plot_interval = 5000, 
         backward_plot_interval = 10000000000,
-        plot_flag = True,
+        plot_expand_flag = True,
+        plot_backward_flag = False,
     )
 
     test.run()

@@ -35,6 +35,7 @@ class PlotUtils():
         plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
         plt.xlabel("state1")
         plt.ylabel("state2")
+        plt.title(f"expand_{expand_counter}")
         plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/epsilon_controllable_set/{expand_counter}.png"))
         plt.close()
 
@@ -59,6 +60,7 @@ class PlotUtils():
         ax.add_patch(circle)
         ax.set_xlabel("state1")
         ax.set_ylabel("state2")
+        ax.set_title(f"backward_{self.backward_counter}")
         # save figure
         if self.backward_counter%self.backward_plot_interval == 0:
             plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/expand_backward/{self.backward_counter}.png"))
@@ -67,22 +69,22 @@ class PlotUtils():
     
     def save_figs(self, fig, ax):
         ax.set_title(f"backward_{self.backward_counter}")
-        plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/expand_backward/{-1}.png"))
+        plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/expand_backward/{self.backward_counter}.png"))
     
-    def plot_sample(self, sample_list: List):
+    def plot_sample(self, transitions):
         plt.figure()
         # plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
         # plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
         # plot line with arrow
-        for k in range(len(sample_list)):
-            plt.plot([sample_list[k][0][0], sample_list[k][3][0]], [sample_list[k][0][1], sample_list[k][3][1]], color='lightgray', linewidth=0.5)
-            plt.plot(sample_list[k][0][0], sample_list[k][0][1], 'o', color='cornflowerblue', markersize=2)
-            plt.plot(sample_list[k][3][0], sample_list[k][3][1], 'o', color='cornflowerblue', markersize=2)
+        plt.plot(*transitions.state, 'o', color='cornflowerblue', markersize=2)
+        plt.plot(*transitions.next_state, 'o', color='cornflowerblue', markersize=2)
+        for k in range(len(transitions)):
+            # plt.plot([sample_list[k][0][0], sample_list[k][3][0]], [sample_list[k][0][1], sample_list[k][3][1]], color='lightgray', linewidth=0.5)
             plt.arrow(
-                sample_list[k][0][0], 
-                sample_list[k][0][1], 
-                sample_list[k][3][0] - sample_list[k][0][0], 
-                sample_list[k][3][1] - sample_list[k][0][1], 
+                transitions[k].state[0], 
+                transitions[k].state[1], 
+                transitions[k].next_state[0] - transitions[k].state[0], 
+                transitions[k].next_state[1] - transitions[k].state[1], 
                 color='red',
                 width = 0.001,
                 head_width = 0.01,

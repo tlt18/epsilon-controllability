@@ -105,7 +105,8 @@ class  ControllabilityTest:
             lips_estimate_mode: str = "sampling",
             expand_plot_interval: int = 1, 
             backward_plot_interval: int = 100,
-            plot_flag: bool = False
+            plot_expand_flag: bool = True,
+            plot_backward_flag: bool = False,
         ):
         self.env = env
         self.buffer = buffer
@@ -115,7 +116,8 @@ class  ControllabilityTest:
         self.lipschitz_confidence = lipschitz_confidence
         self.use_kd_tree = use_kd_tree
         self.expand_plot_interval = expand_plot_interval
-        self.plot_flag = plot_flag
+        self.plot_expand_flag = plot_expand_flag
+        self.plot_backward_flag = plot_backward_flag
         self.epsilon_controllable_set: NeighbourSet = None
         self.lipschitz_fx = getattr(self, f"lipschitz_fx_{lips_estimate_mode}")
         
@@ -166,7 +168,7 @@ class  ControllabilityTest:
                 radius = np.minimum(
                     self.lipschitz_confidence, 
                     (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) /\
-                    self.lipschitz_fx_sampling(data_in_neighbourhood.state, data_in_neighbourhood.action)
+                    self.lipschitz_fx_sampling(data_in_neighbourhood)
                 ),
                 visited=np.zeros(len(data_in_neighbourhood), dtype=bool),
             ), NeighbourSet(
@@ -210,7 +212,7 @@ class  ControllabilityTest:
                             self.epsilon_controllable_set.append(expand_neighbor)
                         else:
                             assert relation == "expand_in_set", "relation is not correct!"
-                        if relation != "expand_in_set" and self.plot_flag:
+                        if relation != "expand_in_set" and self.plot_backward_flag:
                             fig, ax = self.plot_utils.plot_backward(
                                 state = expand_neighbor.centered_state, 
                                 r = expand_neighbor.radius, 
@@ -219,20 +221,22 @@ class  ControllabilityTest:
                                 fig=fig,
                                 ax=ax
                             )
-                    if self.plot_flag and expand_counter%self.expand_plot_interval == 0:
+                    if self.plot_expand_flag and expand_counter%self.expand_plot_interval == 0:
                         self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter)
                     expand_counter += 1
                     print("index in set: {}, expand count: {}, new_neighbor_num: {}, total_controllable_num: {}"
                         .format(idx_set, expand_counter, len(expand_neighbor_set), len(self.epsilon_controllable_set))
                     )
                 idx_set += 1
-        if self.plot_flag:
+        if self.plot_backward_flag:
             self.plot_utils.save_figs(fig, ax)
-        self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, -1)
+        if self.plot_expand_flag:
+            self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter)
 
     def run(self):
-        os.makedirs(FILEPATH + f"/figs/{self.fig_title}/epsilon_controllable_set", exist_ok=True)
-        if self.plot_flag:
+        if self.plot_expand_flag:
+            os.makedirs(FILEPATH + f"/figs/{self.fig_title}/epsilon_controllable_set", exist_ok=True)
+        if self.plot_backward_flag:
             os.makedirs(FILEPATH + f"/figs/{self.fig_title}/expand_backward", exist_ok=True)
 
         with Timeit("sample time"):
@@ -241,7 +245,9 @@ class  ControllabilityTest:
         with Timeit("calculate epsilon controllable set time"):
             self.get_epsilon_controllable_set(self.target_state, self.epsilon)
 
-        self.plot_utils.plot_sample(self.buffer.buffer)
+        with Timeit("plot sample time"):
+            os.makedirs(FILEPATH + f"/figs/{self.fig_title}", exist_ok=True)
+            self.plot_utils.plot_sample(self.dataset)
 
     def check_expand_neighbor_relation(self, expand_neighbor: NeighbourSet) -> Tuple[Optional[str], Optional[np.ndarray]]:
         dist = self.distance(expand_neighbor.centered_state, self.epsilon_controllable_set.centered_state)
@@ -280,7 +286,7 @@ class  ControllabilityTest:
             actions_negdist = - self.distance(data_in_neighbourhood.action, data.action)
             concat_negdist = np.stack([states_negdist, actions_negdist], axis = 0)
 
-            # solve QP: min Lx**2 + Lu**2, s.t. next_state_dist<=Lx*state_dist+Lu*action_dist
+            # solve QP: min Lx**2 + Lu**2, s.t. next_state_dist <= Lx * state_dist + Lu*action_dist
             P = cvxopt.matrix([
                 [1.0, 0.0], 
                 [0.0, 1.0]
@@ -302,7 +308,12 @@ class  ControllabilityTest:
     
     def lipschitz_fx_maxdistance(self, data: Transition) -> np.ndarray:
         # estimate the lipschitz constant by max dist
+        # L := max(d(f(x1,u1), f(x2,u2)) / max(d(x1,x2), d(u1,u2)))
+        # then we have
         # d(f(x1,u1), f(x2,u2)) <= L * max(d(x1,x2), d(u1,u2)) <= L * d(x1, x2) + L * d(u1, u2)
+        # on the other hand,
+        # d(f(x1,u1), f(x2,u2)) <= min Lx * d(x1, x2) + min Lu * d(u1, u2)
+        # min L = min Lx + min Lu
         unbatched = len(data.state.shape) == 1
         if unbatched:
             data = Transition.batch([data])
