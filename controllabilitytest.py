@@ -166,6 +166,13 @@ class  ControllabilityTest:
             return NeighbourSet(
                 centered_state = data_in_neighbourhood.state,
                 radius = np.minimum(
+
+
+
+
+
+
+
                     self.lipschitz_confidence, 
                     (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) /\
                     self.lipschitz_fx_sampling(data_in_neighbourhood)
@@ -262,7 +269,7 @@ class  ControllabilityTest:
         
         return None, None
 
-    def lipschitz_fx_optimizing(self, data: Transition) -> np.ndarray:
+    def lipschitz_fx_optimizing_qp(self, data: Transition) -> np.ndarray:
         # estimate the lipschitz constant by QP
         unbatched = len(data.state.shape) == 1
         if unbatched:
@@ -305,7 +312,47 @@ class  ControllabilityTest:
         if unbatched:
             lipschitz_x = lipschitz_x[0]
         return lipschitz_x
-    
+    def lipschitz_fx_optimizing_lp(self, data: Transition) -> np.ndarray:
+        # estimate the lipschitz constant by QP
+        unbatched = len(data.state.shape) == 1
+        if unbatched:
+            data = Transition.batch([data])
+
+        lipschitz_x = np.zeros(len(data))
+        for idx, single_transition in enumerate(data):
+            lipschitz_confidence = self.lipschitz_confidence
+            while True:
+                if self.use_kd_tree:
+                    data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(single_transition.state.reshape(1, -1), lipschitz_confidence).item()])
+                else:
+                    data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= lipschitz_confidence])
+                if len(data_in_neighbourhood) > 0:
+                    break
+                else:
+                    lipschitz_confidence *= 2
+
+            next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, data.next_state))
+            states_negdist = - self.distance(data_in_neighbourhood.state, data.state)
+            actions_negdist = - self.distance(data_in_neighbourhood.action, data.action)
+            concat_negdist = np.stack([states_negdist, actions_negdist], axis = 0)
+
+            # solve QP: min Lx**2 + Lu**2, s.t. next_state_dist <= Lx * state_dist + Lu*action_dist
+            C = cvxopt.matrix(
+                [1.0, 1.0])
+            h = cvxopt.matrix(next_state_negdist.astype(np.double))
+            G = cvxopt.matrix(concat_negdist.astype(np.double)).T
+            '''
+            minimize    (1/2)*x'*P*x + q'*x
+            subject to  G*x <= h
+                        A*x = b.
+            '''
+            solution = cvxopt.solvers.lp(C, G, h)
+            lipschitz_x[idx] = solution['x'][0]
+
+        if unbatched:
+            lipschitz_x = lipschitz_x[0]
+        return lipschitz_x
+
     def lipschitz_fx_maxdistance(self, data: Transition) -> np.ndarray:
         # estimate the lipschitz constant by max dist
         # L := max(d(f(x1,u1), f(x2,u2)) / max(d(x1,x2), d(u1,u2)))
