@@ -64,6 +64,7 @@ class Transition:
     state: np.ndarray
     action: np.ndarray
     next_state: np.ndarray
+    lipschitz_x: np.ndarray = None
 
     def __init__(self, state: np.ndarray, action: np.ndarray, next_state: np.ndarray):
         self.state = state
@@ -166,16 +167,9 @@ class  ControllabilityTest:
             return NeighbourSet(
                 centered_state = data_in_neighbourhood.state,
                 radius = np.minimum(
-
-
-
-
-
-
-
                     self.lipschitz_confidence, 
                     (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) /\
-                    self.lipschitz_fx_sampling(data_in_neighbourhood)
+                    self.lipschitz_fx(data_in_neighbourhood)
                 ),
                 visited=np.zeros(len(data_in_neighbourhood), dtype=bool),
             ), NeighbourSet(
@@ -240,6 +234,14 @@ class  ControllabilityTest:
         if self.plot_expand_flag:
             self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter)
 
+    def estimate_lipschitz_constant(self):
+        lips_list = []
+        # TODO: suport batch
+        # self.dataset.lipschitz_x = self.lipschitz_fx(self.dataset)
+        for transition in self.dataset:
+            lips_list.append(self.lipschitz_fx(transition))
+        self.dataset.lipschitz_x = np.array(lips_list)
+
     def run(self):
         if self.plot_expand_flag:
             os.makedirs(FILEPATH + f"/figs/{self.fig_title}/epsilon_controllable_set", exist_ok=True)
@@ -248,6 +250,9 @@ class  ControllabilityTest:
 
         with Timeit("sample time"):
             self.sample()
+
+        with Timeit("estimate lipschitz constant time"):
+            self.estimate_lipschitz_constant()
 
         with Timeit("calculate epsilon controllable set time"):
             self.get_epsilon_controllable_set(self.target_state, self.epsilon)
@@ -312,6 +317,7 @@ class  ControllabilityTest:
         if unbatched:
             lipschitz_x = lipschitz_x[0]
         return lipschitz_x
+    
     def lipschitz_fx_optimizing_lp(self, data: Transition) -> np.ndarray:
         # estimate the lipschitz constant by QP
         unbatched = len(data.state.shape) == 1
