@@ -76,8 +76,8 @@ class PlotUtils():
         # plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
         # plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
         # plot line with arrow
-        plt.plot(*transitions.state, 'o', color='cornflowerblue', markersize=2)
-        plt.plot(*transitions.next_state, 'o', color='cornflowerblue', markersize=2)
+        plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color='cornflowerblue', s=1)
+        plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color='cornflowerblue', s=1)
         for k in range(len(transitions)):
             # plt.plot([sample_list[k][0][0], sample_list[k][3][0]], [sample_list[k][0][1], sample_list[k][3][1]], color='lightgray', linewidth=0.5)
             plt.arrow(

@@ -7,17 +7,17 @@ from env.env_base import BaseEnv
 
 
 class Pendulum(BaseEnv):
-    def __init__(self, seed: Optional[int] = None, max_step: int = 200):
+    def __init__(self, seed: Optional[int] = None, max_step: int = 30):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1, ), dtype=np.float32)
-        low = np.array([-1, -1], dtype=np.float32)
-        high = np.array([1, 1], dtype=np.float32)
+        low = np.array([-0.5, -0.5], dtype=np.float32)
+        high = np.array([0.5, 0.5], dtype=np.float32)
         self.observation_space = spaces.Box(low=low, high=high, shape=(2, ), dtype=np.float32)
         self.dt = 0.1
         self.param = {
             "g": 9.8,
             "m": 1,
             "l": 1,
-            "f": 0.1
+            "f": 0.5
         }
         super().__init__(seed = seed, max_step = max_step)
 
@@ -68,7 +68,7 @@ class Pendulum(BaseEnv):
 
 
 class PendulumwoControl(Pendulum):
-    def __init__(self, seed: int = None, max_step: int = 200):
+    def __init__(self, seed: int = None, max_step: int = 30):
         super().__init__(seed, max_step)
         self.action_space = spaces.Box(low=-0.0, high=0.0, shape=(1, ), dtype=np.float32)
 
