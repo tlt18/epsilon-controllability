@@ -59,17 +59,13 @@ class NeighbourSet:
         self.centered_state = np.append(self.centered_state, neighbor.centered_state.reshape(1, -1), axis=0)
         self.radius = np.append(self.radius, neighbor.radius.reshape(1), axis=0)
         self.visited = np.append(self.visited, neighbor.visited.reshape(1), axis=0)
-        
+
+@dataclass    
 class Transition:
     state: np.ndarray
     action: np.ndarray
     next_state: np.ndarray
     lipschitz_x: np.ndarray = None
-
-    def __init__(self, state: np.ndarray, action: np.ndarray, next_state: np.ndarray):
-        self.state = state
-        self.action = action
-        self.next_state = next_state
 
     def __len__(self):
         assert len(self.state.shape) > 0, "The data must be batched!"
@@ -82,6 +78,7 @@ class Transition:
             state = self.state[index],
             action = self.action[index],
             next_state = self.next_state[index],
+            lipschitz_x = self.lipschitz_x[index] if self.lipschitz_x is not None else None,
         )
 
     @staticmethod
@@ -90,6 +87,7 @@ class Transition:
             state = np.array([transition.state for transition in transitionList]),
             action = np.array([transition.action for transition in transitionList]),
             next_state = np.array([transition.next_state for transition in transitionList]),
+            lipschitz_x = np.array([transition.lipschitz_x for transition in transitionList]) if transitionList[0].lipschitz_x is not None else None,
         )
 
 
@@ -169,7 +167,7 @@ class  ControllabilityTest:
                 radius = np.minimum(
                     self.lipschitz_confidence, 
                     (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) /\
-                    self.lipschitz_fx(data_in_neighbourhood)
+                    data_in_neighbourhood.lipschitz_x
                 ),
                 visited=np.zeros(len(data_in_neighbourhood), dtype=bool),
             ), NeighbourSet(
@@ -191,11 +189,12 @@ class  ControllabilityTest:
         # until all the neighbor sets are visited
         while not all([neighbor.visited for neighbor in self.epsilon_controllable_set]):
             idx_set = 0
+            new_neighbor_num = 0
             while idx_set < len(self.epsilon_controllable_set):
                 neighbor = self.epsilon_controllable_set[idx_set]
                 # TODO: more detailed implementation  
-                if len(self.epsilon_controllable_set) == self.num_sample:
-                    return
+                # if len(self.epsilon_controllable_set) == self.num_sample:
+                # return
                 if not neighbor.visited:
                     expand_neighbor_set, last_neighbor_set = self.backward_expand(neighbor)
                     self.epsilon_controllable_set[idx_set] = neighbor # set visited = True
@@ -203,17 +202,18 @@ class  ControllabilityTest:
                         relation, idx_inlist = self.check_expand_neighbor_relation(expand_neighbor)
                         if relation == None:
                             self.epsilon_controllable_set.append(expand_neighbor)
+                            new_neighbor_num += 1
                         elif relation == "set_in_expand":
                             # If you do not use fliter, only the elements after the current point are deleted.
                             # Pro: overwritten neighbors are removed from the collection.
                             # Con: the iteration starts from the beginning after the iteration ends.
-                            idx_inlist = list(filter(lambda x: x > idx_set, idx_inlist))
-
-                            del self.epsilon_controllable_set[idx_inlist]
+                            idx_dellist = list(filter(lambda x: x > idx_set, idx_inlist))
+                            del self.epsilon_controllable_set[idx_dellist]
                             self.epsilon_controllable_set.append(expand_neighbor)
+                            new_neighbor_num += 1
                         else:
-                            assert relation == "expand_in_set", "relation is not correct!"
-                        if relation != "expand_in_set" and self.plot_backward_flag:
+                            assert relation == "expand_in_set" or "same_state", "relation is not correct!"
+                        if relation != "expand_in_set" and relation != "same_state" and self.plot_backward_flag:
                             fig, ax = self.plot_utils.plot_backward(
                                 state = expand_neighbor.centered_state, 
                                 r = expand_neighbor.radius, 
@@ -225,9 +225,11 @@ class  ControllabilityTest:
                     if self.plot_expand_flag and expand_counter%self.expand_plot_interval == 0:
                         self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter)
                     expand_counter += 1
-                    print("index in set: {}, expand count: {}, new_neighbor_num: {}, total_controllable_num: {}"
-                        .format(idx_set, expand_counter, len(expand_neighbor_set), len(self.epsilon_controllable_set))
-                    )
+                    if idx_set % 100 == 0 or idx_set == len(self.epsilon_controllable_set) - 1:
+                        print("index in set: {}, expand count: {}, new_neighbor_num: {}, total_controllable_num: {}"
+                            .format(idx_set, expand_counter, new_neighbor_num, len(self.epsilon_controllable_set))
+                        )
+                        new_neighbor_num = 0
                 idx_set += 1
         if self.plot_backward_flag:
             self.plot_utils.save_figs(fig, ax)
@@ -235,12 +237,7 @@ class  ControllabilityTest:
             self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter)
 
     def estimate_lipschitz_constant(self):
-        lips_list = []
-        # TODO: suport batch
-        # self.dataset.lipschitz_x = self.lipschitz_fx(self.dataset)
-        for transition in self.dataset:
-            lips_list.append(self.lipschitz_fx(transition))
-        self.dataset.lipschitz_x = np.array(lips_list)
+        self.dataset.lipschitz_x = self.lipschitz_fx(self.dataset)
 
     def run(self):
         if self.plot_expand_flag:
@@ -267,6 +264,10 @@ class  ControllabilityTest:
         expand_in_set_condition = (dist <= self.epsilon_controllable_set.radius - expand_neighbor.radius)
         if np.any(expand_in_set_condition):
             return "expand_in_set", np.where(expand_in_set_condition)[0]
+        
+        # same_state_condition = dist < 1e-6
+        # if np.any(same_state_condition):
+        #     return "same_state", np.where(same_state_condition)[0]
         
         list_in_expand_condition = (dist <= expand_neighbor.radius - self.epsilon_controllable_set.radius)
         if np.any(list_in_expand_condition):
@@ -319,7 +320,7 @@ class  ControllabilityTest:
         return lipschitz_x
     
     def lipschitz_fx_optimizing_lp(self, data: Transition) -> np.ndarray:
-        # estimate the lipschitz constant by QP
+        # estimate the lipschitz constant by LP
         unbatched = len(data.state.shape) == 1
         if unbatched:
             data = Transition.batch([data])
@@ -342,7 +343,7 @@ class  ControllabilityTest:
             actions_negdist = - self.distance(data_in_neighbourhood.action, data.action)
             concat_negdist = np.stack([states_negdist, actions_negdist], axis = 0)
 
-            # solve QP: min Lx**2 + Lu**2, s.t. next_state_dist <= Lx * state_dist + Lu*action_dist
+            # solve LP: min Lx + Lu, s.t. next_state_dist <= Lx * state_dist + Lu*action_dist
             C = cvxopt.matrix(
                 [1.0, 1.0])
             h = cvxopt.matrix(next_state_negdist.astype(np.double))
