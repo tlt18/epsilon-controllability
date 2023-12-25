@@ -8,7 +8,7 @@ import numpy as np
 
 
 if __name__ == "__main__":
-    num_sample = 100000
+    num_sample = 10000
     epsilon = 0.05
     target_state = np.array([-0.0, 0.0])
     lipschitz_confidence = 0.2
@@ -23,6 +23,7 @@ if __name__ == "__main__":
         num_sample = num_sample,
         lipschitz_confidence = lipschitz_confidence,
         use_kd_tree = True,
+        expand_mode = "strict",
         lips_estimate_mode = "sampling",
         expand_plot_interval = 5000, 
         backward_plot_interval = 10000000000,
