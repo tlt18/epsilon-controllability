@@ -48,8 +48,8 @@ class PlotUtils():
             assert hasattr(self, "orgin_state"), "Please set orgin state first!"
             circle = plt.Circle(self.orgin_state, self.orgin_radius, color='k', fill=False)
             ax.add_patch(circle)
-            ax.set_xlim([self.obs_space.low[0], self.obs_space.high[0]])
-            ax.set_ylim([self.obs_space.low[1], self.obs_space.high[1]])
+            # ax.set_xlim([self.obs_space.low[0], self.obs_space.high[0]])
+            # ax.set_ylim([self.obs_space.low[1], self.obs_space.high[1]])
         # plot line between state and next_state
         ax.plot([state[0], next_state[0]], [state[1], next_state[1]], color='lightgray', alpha=0.5, linewidth=0.5)
         # plot circle at state with radius r
@@ -76,8 +76,6 @@ class PlotUtils():
         # plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
         # plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
         # plot line with arrow
-        plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color='cornflowerblue', s=1)
-        plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color='cornflowerblue', s=1)
         for k in range(len(transitions)):
             # plt.plot([sample_list[k][0][0], sample_list[k][3][0]], [sample_list[k][0][1], sample_list[k][3][1]], color='lightgray', linewidth=0.5)
             plt.arrow(
@@ -89,6 +87,8 @@ class PlotUtils():
                 width = 0.001,
                 head_width = 0.01,
             )
+        plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color='cornflowerblue', s=1)
+        plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color='cornflowerblue', s=1)
         plt.axis('equal')
         plt.xlabel("state1")
         plt.ylabel("state2")
