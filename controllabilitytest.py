@@ -38,6 +38,11 @@ class NeighbourSet:
             "The length of centered_state, radius and visited are not equal!"
         return len(self.centered_state)
     
+    def replace(self, idx_1: int, idx_2: int):
+        self.centered_state[[idx_1, idx_2]] = self.centered_state[[idx_2, idx_1]]
+        self.radius[[idx_1, idx_2]] = self.radius[[idx_2, idx_1]]
+        self.visited[[idx_1, idx_2]] = self.visited[[idx_2, idx_1]]
+    
     def __getitem__(self, index):
         return NeighbourSet(
             centered_state = self.centered_state[index],
@@ -111,7 +116,7 @@ class  ControllabilityTest:
         self.env = env
         self.buffer = buffer
         self.num_sample = num_sample
-        self.target_state = target_state
+        self.target_state = target_state.astype(np.float32)
         self.epsilon = epsilon
         self.lipschitz_confidence = lipschitz_confidence
         self.use_kd_tree = use_kd_tree
@@ -201,10 +206,11 @@ class  ControllabilityTest:
             idx_set = 0
             new_neighbor_num = 0
             while idx_set < len(self.epsilon_controllable_set):
+                # find the neighbor with the largest radius
+                idx_max = np.argmax(self.epsilon_controllable_set.radius[idx_set:])
+                self.epsilon_controllable_set.replace(idx_set, idx_set + idx_max)
+
                 neighbor = self.epsilon_controllable_set[idx_set]
-                # TODO: more detailed implementation  
-                # if len(self.epsilon_controllable_set) == self.num_sample:
-                # return
                 if not neighbor.visited:
                     expand_neighbor_set, last_neighbor_set = self.backward_expand(neighbor)
                     self.epsilon_controllable_set[idx_set] = neighbor # set visited = True
@@ -236,8 +242,8 @@ class  ControllabilityTest:
                         self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter)
                     expand_counter += 1
                     if idx_set % 100 == 0 or idx_set == len(self.epsilon_controllable_set) - 1:
-                        print("index in set: {}, expand count: {}, new_neighbor_num: {}, total_controllable_num: {}"
-                            .format(idx_set, expand_counter, new_neighbor_num, len(self.epsilon_controllable_set))
+                        print("index in set: {}, new_neighbor_num: {}, total_controllable_num: {}, current radius: {}"
+                            .format(idx_set, new_neighbor_num, len(self.epsilon_controllable_set), neighbor.radius)
                         )
                         new_neighbor_num = 0
                 idx_set += 1
@@ -267,6 +273,19 @@ class  ControllabilityTest:
         with Timeit("plot sample time"):
             os.makedirs(FILEPATH + f"/figs/{self.fig_title}", exist_ok=True)
             self.plot_utils.plot_sample(self.dataset)
+        
+        self.save_epsilon_controllable_set()
+
+    def save_epsilon_controllable_set(self):
+        epsilon_controllable_set = np.concatenate(
+            [
+                self.epsilon_controllable_set.centered_state,
+                self.epsilon_controllable_set.radius.reshape(-1, 1),
+                self.epsilon_controllable_set.visited.reshape(-1, 1)
+            ], axis=1
+        )
+        header = ', '.join(["state"+str(i) for i in range(self.env.observation_space.shape[0])] + ["radius", "visited"])
+        np.savetxt(FILEPATH + f"/figs/{self.fig_title}/epsilon_controllable_set.csv", epsilon_controllable_set, delimiter=",", header=header, comments="")
 
     def check_expand_neighbor_relation(self, expand_neighbor: NeighbourSet) -> Tuple[Optional[str], Optional[np.ndarray]]:
         dist = self.distance(expand_neighbor.centered_state, self.epsilon_controllable_set.centered_state)
