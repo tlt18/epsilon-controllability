@@ -192,12 +192,12 @@ class  ControllabilityTest:
                 centered_state = data_in_neighbourhood.state,
                 radius = r_state,
                 visited = np.zeros(len(data_in_neighbourhood), dtype=bool),
-                controllable_steps = neighbor.controllable_steps + 1,
+                controllable_steps = (neighbor.controllable_steps + 1) * np.ones(len(data_in_neighbourhood)),
             ), NeighbourSet(
                 centered_state = data_in_neighbourhood.next_state,
                 radius = r_next_state,
                 visited=np.zeros(len(data_in_neighbourhood), dtype=bool),
-                controllable_steps = None,
+                controllable_steps = -1 * np.ones(len(data_in_neighbourhood)),
             )
 
     def get_epsilon_controllable_set(self, state: np.ndarray, epsilon: float):
