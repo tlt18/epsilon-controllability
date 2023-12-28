@@ -23,6 +23,7 @@ class NeighbourSet:
     centered_state: np.ndarray
     radius: Union[float, np.ndarray]
     visited: Union[bool, np.ndarray] = False
+    controllable_steps: Union[int, np.ndarray] = 0
 
     @staticmethod
     def batch(neighbor_list: List["NeighbourSet"]) -> "NeighbourSet":
@@ -30,11 +31,12 @@ class NeighbourSet:
             centered_state = np.array([neighbor.centered_state for neighbor in neighbor_list]),
             radius = np.array([neighbor.radius for neighbor in neighbor_list]),
             visited = np.array([neighbor.visited for neighbor in neighbor_list]),
+            controllable_steps = np.array([neighbor.controllable_steps for neighbor in neighbor_list]),
         )
     
     def __len__(self):
         assert len(self.radius.shape) > 0, "The data must be batched!"
-        assert len(self.centered_state) == len(self.radius) == len(self.visited), \
+        assert len(self.centered_state) == len(self.radius) == len(self.visited) == len(self.controllable_steps), \
             "The length of centered_state, radius and visited are not equal!"
         return len(self.centered_state)
     
@@ -42,28 +44,33 @@ class NeighbourSet:
         self.centered_state[[idx_1, idx_2]] = self.centered_state[[idx_2, idx_1]]
         self.radius[[idx_1, idx_2]] = self.radius[[idx_2, idx_1]]
         self.visited[[idx_1, idx_2]] = self.visited[[idx_2, idx_1]]
+        self.controllable_steps[[idx_1, idx_2]] = self.controllable_steps[[idx_2, idx_1]]
     
     def __getitem__(self, index):
         return NeighbourSet(
             centered_state = self.centered_state[index],
             radius = self.radius[index],
             visited = self.visited[index],
+            controllable_steps = self.controllable_steps[index],
         )
     
     def __setitem__(self, index, neighbor: "NeighbourSet"):
         self.centered_state[index] = neighbor.centered_state
         self.radius[index] = neighbor.radius
         self.visited[index] = neighbor.visited
+        self.controllable_steps[index] = neighbor.controllable_steps
     
     def __delitem__(self, index):
         self.centered_state = np.delete(self.centered_state, index, axis=0)
         self.radius = np.delete(self.radius, index, axis=0)
         self.visited = np.delete(self.visited, index, axis=0)
+        self.controllable_steps = np.delete(self.controllable_steps, index, axis=0)
 
     def append(self, neighbor: "NeighbourSet"):
         self.centered_state = np.append(self.centered_state, neighbor.centered_state.reshape(1, -1), axis=0)
         self.radius = np.append(self.radius, neighbor.radius.reshape(1), axis=0)
         self.visited = np.append(self.visited, neighbor.visited.reshape(1), axis=0)
+        self.controllable_steps = np.append(self.controllable_steps, neighbor.controllable_steps.reshape(1), axis=0)
 
 @dataclass    
 class Transition:
@@ -127,7 +134,7 @@ class  ControllabilityTest:
         self.epsilon_controllable_set: NeighbourSet = None
         self.lipschitz_fx = getattr(self, f"lipschitz_fx_{lips_estimate_mode}")
         
-        self.fig_title = f"{env.__class__.__name__}/{target_state}state-{epsilon}epsilon-{num_sample}samples-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.fig_title = f"{env.__class__.__name__}/{target_state}state-{epsilon}epsilon-{num_sample}samples-{expand_mode}-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.plot_utils: PlotUtils = PlotUtils(
             obs_space = self.env.observation_space, 
             action_space = self.env.action_space,
@@ -184,11 +191,13 @@ class  ControllabilityTest:
             return NeighbourSet(
                 centered_state = data_in_neighbourhood.state,
                 radius = r_state,
-                visited=np.zeros(len(data_in_neighbourhood), dtype=bool),
+                visited = np.zeros(len(data_in_neighbourhood), dtype=bool),
+                controllable_steps = neighbor.controllable_steps + 1,
             ), NeighbourSet(
                 centered_state = data_in_neighbourhood.next_state,
                 radius = r_next_state,
                 visited=np.zeros(len(data_in_neighbourhood), dtype=bool),
+                controllable_steps = None,
             )
 
     def get_epsilon_controllable_set(self, state: np.ndarray, epsilon: float):
@@ -247,7 +256,7 @@ class  ControllabilityTest:
                         )
                         new_neighbor_num = 0
                 idx_set += 1
-        if self.plot_backward_flag:
+        if self.plot_backward_flag and fig is not None and ax is not None:
             self.plot_utils.save_figs(fig, ax)
         if self.plot_expand_flag:
             self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter)
@@ -281,10 +290,11 @@ class  ControllabilityTest:
             [
                 self.epsilon_controllable_set.centered_state,
                 self.epsilon_controllable_set.radius.reshape(-1, 1),
-                self.epsilon_controllable_set.visited.reshape(-1, 1)
+                self.epsilon_controllable_set.visited.reshape(-1, 1),
+                self.epsilon_controllable_set.controllable_steps.reshape(-1, 1),
             ], axis=1
         )
-        header = ', '.join(["state"+str(i) for i in range(self.env.observation_space.shape[0])] + ["radius", "visited"])
+        header = ', '.join(["state"+str(i) for i in range(self.env.observation_space.shape[0])] + ["radius", "visited", "controllable steps"])
         np.savetxt(FILEPATH + f"/figs/{self.fig_title}/epsilon_controllable_set.csv", epsilon_controllable_set, delimiter=",", header=header, comments="")
 
     def check_expand_neighbor_relation(self, expand_neighbor: NeighbourSet) -> Tuple[Optional[str], Optional[np.ndarray]]:
