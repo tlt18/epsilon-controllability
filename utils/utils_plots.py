@@ -30,9 +30,9 @@ class PlotUtils():
             self.plot_backward = self.plot_backward_3D
             self.plot_sample = self.plot_sample_3D
         else:
-            self.plot_epsilon_controllable_set = None
-            self.plot_backward = None
-            self.plot_sample = None
+            self.plot_epsilon_controllable_set = self.empty_function
+            self.plot_backward = self.empty_function
+            self.plot_sample = self.empty_function
             print("Warning: obs_space.shape[0] is not 2 or 3, plot_epsilon_controllable_set, plot_backward and plot_sample are not defined.")
 
     def set_orgin_state(self, orgin_state):
@@ -195,3 +195,6 @@ class PlotUtils():
     def save_figs(self, fig, ax):
         ax.set_title(f"backward_{self.backward_counter}")
         plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/expand_backward/{self.backward_counter}.png"))
+
+    def empty_function(*args, **kwargs):
+        return None, None
