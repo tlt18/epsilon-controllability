@@ -113,7 +113,6 @@ class  ControllabilityTest:
             num_sample: int = 10000,
             lipschitz_confidence: float = 0.2,
             use_kd_tree: bool = False,
-            expand_mode: str = "strict",
             lips_estimate_mode: str = "sampling",
             expand_plot_interval: int = 1, 
             backward_plot_interval: int = 100,
@@ -127,14 +126,13 @@ class  ControllabilityTest:
         self.epsilon = epsilon
         self.lipschitz_confidence = lipschitz_confidence
         self.use_kd_tree = use_kd_tree
-        self.expand_mode = expand_mode
         self.expand_plot_interval = expand_plot_interval
         self.plot_expand_flag = plot_expand_flag
         self.plot_backward_flag = plot_backward_flag
         self.epsilon_controllable_set: NeighbourSet = None
         self.lipschitz_fx = getattr(self, f"lipschitz_fx_{lips_estimate_mode}")
         
-        self.fig_title = f"{env.__class__.__name__}/{target_state}state-{epsilon}epsilon-{num_sample}samples-{expand_mode}-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.fig_title = f"{env.__class__.__name__}/{target_state}state-{epsilon}epsilon-{num_sample}samples-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.plot_utils: PlotUtils = PlotUtils(
             obs_space = self.env.observation_space, 
             action_space = self.env.action_space,
@@ -176,18 +174,15 @@ class  ControllabilityTest:
         if len(data_in_neighbourhood) == 0:
             return [], []
         else:
-            if self.expand_mode == "strict":
-                r_state = np.minimum(
-                        self.lipschitz_confidence, 
-                        (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) /\
-                        data_in_neighbourhood.lipschitz_x
-                )
-                r_next_state = neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)
-            elif self.expand_mode == "loose":
-                r_state = self.epsilon * np.ones(len(data_in_neighbourhood))
-                r_next_state = self.epsilon * np.ones(len(data_in_neighbourhood))
-            else:
-                raise NotImplementedError("expand mode is not implemented!")
+            r_state = np.minimum(
+                    self.lipschitz_confidence, 
+                    (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) /\
+                    data_in_neighbourhood.lipschitz_x
+            )
+            r_next_state = neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)
+            # For loose mode:
+            # r_state = self.epsilon * np.ones(len(data_in_neighbourhood))
+            # r_next_state = self.epsilon * np.ones(len(data_in_neighbourhood))
             return NeighbourSet(
                 centered_state = data_in_neighbourhood.state,
                 radius = r_state,
