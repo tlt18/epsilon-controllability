@@ -77,7 +77,12 @@ class Transition:
     state: np.ndarray
     action: np.ndarray
     next_state: np.ndarray
-    lipschitz_x: np.ndarray = None
+    lipschitz_x: Optional[np.ndarray] = None
+    is_controllable: Optional[np.ndarray] = None
+
+    def __post_init__(self):
+        if self.is_controllable is None:
+            self.is_controllable = np.full(self.state.shape[0], False)
 
     def __len__(self):
         assert len(self.state.shape) > 0, "The data must be batched!"
@@ -91,6 +96,7 @@ class Transition:
             action = self.action[index],
             next_state = self.next_state[index],
             lipschitz_x = self.lipschitz_x[index] if self.lipschitz_x is not None else None,
+            is_controllable = self.is_controllable[index],
         )
 
     @staticmethod
@@ -100,6 +106,7 @@ class Transition:
             action = np.array([transition.action for transition in transitionList]),
             next_state = np.array([transition.next_state for transition in transitionList]),
             lipschitz_x = np.array([transition.lipschitz_x for transition in transitionList]) if transitionList[0].lipschitz_x is not None else None,
+            is_controllable = np.array([transition.is_controllable for transition in transitionList]),
         )
 
 
@@ -136,6 +143,7 @@ class  ControllabilityTest:
         self.plot_utils: PlotUtils = PlotUtils(
             obs_space = self.env.observation_space, 
             action_space = self.env.action_space,
+            orgin_state = self.target_state,
             orgin_radius = self.epsilon,
             fig_title = self.fig_title,
             backward_plot_interval = backward_plot_interval,
@@ -166,9 +174,11 @@ class  ControllabilityTest:
         
         # Step 1: Find all the states in the buffer that belong to the neighborhood set
         if self.use_kd_tree:
-            data_in_neighbourhood = deepcopy(self.dataset[self.next_state_kdtree.query_radius(neighbor.centered_state.reshape(1, -1), neighbor.radius).item()])
+            idx_neighbourhood = self.next_state_kdtree.query_radius(neighbor.centered_state.reshape(1, -1), neighbor.radius).item()
         else:
-            data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.next_state, neighbor.centered_state) <= neighbor.radius])
+            idx_neighbourhood = self.distance(self.dataset.next_state, neighbor.centered_state) <= neighbor.radius
+        data_in_neighbourhood = deepcopy(self.dataset[idx_neighbourhood])
+        self.dataset.is_controllable[idx_neighbourhood] = np.ones_like(self.dataset.is_controllable[idx_neighbourhood], dtype=bool)
 
         # Step 2: one-step backward expand
         if len(data_in_neighbourhood) == 0:
@@ -202,7 +212,6 @@ class  ControllabilityTest:
         assert self.epsilon_controllable_set == None, "The epsilon controllable list is not empty!"
         expand_counter = 0
         fig, ax = None, None
-        self.plot_utils.set_orgin_state(state)
 
         self.epsilon_controllable_set = NeighbourSet.batch([NeighbourSet(state, epsilon)])
         # until all the neighbor sets are visited
@@ -277,6 +286,7 @@ class  ControllabilityTest:
         with Timeit("plot sample time"):
             os.makedirs(FILEPATH + f"/figs/{self.fig_title}", exist_ok=True)
             self.plot_utils.plot_sample(self.dataset)
+            self.plot_utils.plot_controllable_data(self.dataset)
         
         self.save_epsilon_controllable_set()
 

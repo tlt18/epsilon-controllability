@@ -36,6 +36,7 @@ class MassSpring(BaseEnv):
 
     def get_next_state(self, action):
         '''
+        https://courses.engr.illinois.edu/ece486/fa2023/documentation/handbook/lec02.html
         Dynamics:
             \dot{x} = v
             \dot{v} = -k/m * x -\rho/m * v + u/m

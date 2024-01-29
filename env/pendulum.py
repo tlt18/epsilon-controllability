@@ -17,7 +17,7 @@ class Pendulum(BaseEnv):
             "g": 9.8,
             "m": 1,
             "l": 1,
-            "f": 0.5
+            "f": 0.1
         }
         super().__init__(seed = seed, max_step = max_step)
 
