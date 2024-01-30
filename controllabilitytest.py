@@ -1,4 +1,5 @@
 # controllability test for dynamics systems in datative setting
+import math
 from copy import deepcopy
 from dataclasses import dataclass
 import datetime
@@ -7,6 +8,7 @@ from typing import List, Optional, Tuple, Union
 
 import cvxopt
 import gym
+import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.neighbors import KDTree
 
@@ -308,7 +310,7 @@ class  ControllabilityTest:
         expand_in_set_condition = (dist <= self.epsilon_controllable_set.radius - expand_neighbor.radius)
         if np.any(expand_in_set_condition):
             return "expand_in_set", np.where(expand_in_set_condition)[0]
-        
+
         # same_state_condition = dist < 1e-6
         # if np.any(same_state_condition):
         #     return "same_state", np.where(same_state_condition)[0]
@@ -319,14 +321,108 @@ class  ControllabilityTest:
         
         return None, None
 
-    def lipschitz_fx_optimizing_qp(self, data: Transition) -> np.ndarray:
-        # estimate the lipschitz constant by QP
+    def lipschitz_fx_maxdistance(self, data: Transition) -> np.ndarray:
+        # estimate the lipschitz constant by max dist
+        # L := max(d(f(x1,u1), f(x2,u2)) / max(d(x1,x2), d(u1,u2)))
+        # then we have
+        # d(f(x1,u1), f(x2,u2)) <= L * max(d(x1,x2), d(u1,u2)) <= L * d(x1, x2) + L * d(u1, u2)
+        # on the other hand,
+        # d(f(x1,u1), f(x2,u2)) <= min Lx * d(x1, x2) + min Lu * d(u1, u2)
+        # min L = min Lx + min Lu
         unbatched = len(data.state.shape) == 1
         if unbatched:
             data = Transition.batch([data])
 
         lipschitz_x = np.zeros(len(data))
         for idx, single_transition in enumerate(data):
+            lipschitz_confidence = self.lipschitz_confidence
+            while True:
+                if self.use_kd_tree:
+                    data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(
+                        single_transition.state.reshape(1, -1), lipschitz_confidence).item()])
+                else:
+                    data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state,
+                                                                                single_transition.state) <= lipschitz_confidence])
+                if len(data_in_neighbourhood) > 0:
+                    break
+                else:
+                    lipschitz_confidence *= 2
+
+            lipschitz_x[idx] = np.max(
+                self.distance(single_transition.next_state, data_in_neighbourhood.next_state) / \
+                np.max([
+                    self.distance(single_transition.state, data_in_neighbourhood.state),
+                    self.distance(single_transition.action, data_in_neighbourhood.action)
+                ], axis=0)
+            )
+
+        if unbatched:
+            lipschitz_x = lipschitz_x[0]
+        return lipschitz_x
+
+    def lipschitz_fx_sampling(self, data: Transition) -> np.ndarray:
+        # calculate the lipschitz constant by sampling
+        sample_num = 10
+        unbatched = len(data.state.shape) == 1
+        if unbatched:
+            data = Transition.batch([data])
+        batch_size, state_dim = data.state.shape
+        # sample state
+        sample_delta_states = np.random.randn(sample_num, batch_size, state_dim)
+        sample_delta_states = sample_delta_states / \
+                              np.linalg.norm(sample_delta_states, axis=2, keepdims=True) * \
+                              np.random.uniform(0.00001, self.lipschitz_confidence, size=(sample_num, batch_size, 1))
+        # sample_delta_states: [sample_num, batch_size, state_dim]
+        # states: [batch_size, state_dim]
+        sample_states = (sample_delta_states + data.state[None, :]).reshape(-1, state_dim)
+        actions = data.action[None, :].repeat(sample_num, axis=0).reshape(-1, self.env.action_space.shape[0])
+
+        Lx = self.jacobi_atx(sample_states, actions).reshape(sample_num, batch_size)
+        Lx = np.max(Lx, axis=0)
+
+        if unbatched:
+            Lx = Lx[0]
+        return Lx
+
+    def jacobi_atx(self, state: np.ndarray, action: np.ndarray) -> np.ndarray:
+        # calculate the lipschitz constant of the dynamics function at (state, action)
+        unbatched = len(state.shape) == 1
+        if unbatched:
+            states = state[None, :]
+            actions = action[None, :]
+        else:
+            states = state
+            actions = action
+        batch_size, state_dim = states.shape
+        delta_d = 0.001
+        lipschitz_x = np.zeros((batch_size, state_dim, state_dim))
+        delta_x = np.eye(state_dim) * delta_d
+        delta_x = delta_x[None, :]
+        states = states[:, None, :]
+        actions = actions[:, None, :].repeat(state_dim, axis=1).reshape(-1, self.env.action_space.shape[0])
+        lipschitz_x = (
+                              self.env.model_forward(
+                                  (states + delta_x).reshape(-1, state_dim), actions
+                              ) - self.env.model_forward(
+                          (states - delta_x).reshape(-1, state_dim), actions
+                      )
+                      ) / (2 * delta_d)
+        lipschitz_x = lipschitz_x.reshape(batch_size, state_dim, state_dim)
+        result = np.linalg.norm(lipschitz_x, ord=2, axis=(1, 2))
+        if unbatched:
+            result = result[0]
+        return result
+    def lipschitz_fx_optimizing_qp(self, data: Transition) -> np.ndarray:
+        # estimate the lipschitz constant by QP
+        unbatched = len(data.state.shape) == 1
+        sample_lips = self.lipschitz_fx_sampling(data)
+        if unbatched:
+            data = Transition.batch([data])
+
+        lipschitz_x = np.zeros(len(data))
+        optimal = np.zeros(len(data))
+        for idx, single_transition in enumerate(data):
+
             lipschitz_confidence = self.lipschitz_confidence
             while True:
                 if self.use_kd_tree:
@@ -337,10 +433,11 @@ class  ControllabilityTest:
                     break
                 else:
                     lipschitz_confidence *= 2
-
-            next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, data.next_state))
-            states_negdist = - self.distance(data_in_neighbourhood.state, data.state)
-            actions_negdist = - self.distance(data_in_neighbourhood.action, data.action)
+            intercept_x = np.zeros(len(data_in_neighbourhood))
+            intercept_y = np.zeros(len(data_in_neighbourhood))
+            next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, single_transition.next_state))
+            states_negdist = - self.distance(data_in_neighbourhood.state, single_transition.state)
+            actions_negdist = - self.distance(data_in_neighbourhood.action, single_transition.action)
             concat_negdist = np.stack([states_negdist, actions_negdist], axis = 0)
 
             # solve QP: min Lx**2 + Lu**2, s.t. next_state_dist <= Lx * state_dist + Lu*action_dist
@@ -358,6 +455,41 @@ class  ControllabilityTest:
             '''
             solution = cvxopt.solvers.qp(P, q, G, h)
             lipschitz_x[idx] = solution['x'][0]
+            optimal[idx] = math.sqrt(solution['x'][0]**2+solution['x'][1]**2)
+            if idx != 1:
+                continue
+            else:
+                for i in range(len(intercept_x)):
+                    if states_negdist[i]==0 or actions_negdist[i]==0:
+                        # intercept_x=np.delete(intercept_x,)
+                        continue
+                    else:
+                        intercept_x[i] = next_state_negdist[i]/states_negdist[i]
+                        intercept_y[i] = next_state_negdist[i] / actions_negdist[i]
+                fig, ax = plt.subplots()
+                ax.axhline(0, color='black', linewidth=0.5)
+                ax.axvline(0, color='black', linewidth=0.5)
+
+                # 隐藏右侧和上侧的坐标轴线
+                ax.spines['right'].set_visible(False)
+                ax.spines['top'].set_visible(False)
+
+                for i in range(len(intercept_x)):
+                    x=np.array([0.0,intercept_x[i]])
+                    y=np.array([intercept_y[i],0.0])
+                    ax.plot(x,y, linestyle='--')
+                theta = np.linspace(0, np.pi/2, 100)  # 在 0 到 2*pi 之间生成100个均匀分布的角度值
+                radius = optimal[idx]
+
+
+                # 计算圆上的点的坐标
+                x = radius * np.cos(theta)
+                y = radius * np.sin(theta)
+                ax.plot(x, y, label='Circle')
+                # ax.scatter(sample_lips[idx][0], sample_lips[idx][1], linewidths=1)
+                plt.show()
+
+
 
         if unbatched:
             lipschitz_x = lipschitz_x[0]
@@ -404,95 +536,7 @@ class  ControllabilityTest:
             lipschitz_x = lipschitz_x[0]
         return lipschitz_x
 
-    def lipschitz_fx_maxdistance(self, data: Transition) -> np.ndarray:
-        # estimate the lipschitz constant by max dist
-        # L := max(d(f(x1,u1), f(x2,u2)) / max(d(x1,x2), d(u1,u2)))
-        # then we have
-        # d(f(x1,u1), f(x2,u2)) <= L * max(d(x1,x2), d(u1,u2)) <= L * d(x1, x2) + L * d(u1, u2)
-        # on the other hand,
-        # d(f(x1,u1), f(x2,u2)) <= min Lx * d(x1, x2) + min Lu * d(u1, u2)
-        # min L = min Lx + min Lu
-        unbatched = len(data.state.shape) == 1
-        if unbatched:
-            data = Transition.batch([data])
 
-        lipschitz_x = np.zeros(len(data))
-        for idx, single_transition in enumerate(data):
-            lipschitz_confidence = self.lipschitz_confidence
-            while True:
-                if self.use_kd_tree:
-                    data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(single_transition.state.reshape(1, -1), lipschitz_confidence).item()])
-                else:
-                    data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= lipschitz_confidence])
-                if len(data_in_neighbourhood) > 0:
-                    break
-                else:
-                    lipschitz_confidence *= 2
-                    
-            lipschitz_x[idx] = np.max(
-                self.distance(single_transition.next_state, data_in_neighbourhood.next_state) / \
-                np.max([
-                    self.distance(single_transition.state, data_in_neighbourhood.state), 
-                    self.distance(single_transition.action, data_in_neighbourhood.action)
-                ], axis=0)
-            )
-
-        if unbatched:
-            lipschitz_x = lipschitz_x[0]
-        return lipschitz_x
-
-    def lipschitz_fx_sampling(self, data: Transition) -> np.ndarray:
-        # calculate the lipschitz constant by sampling
-        sample_num = 10
-        unbatched = len(data.state.shape) == 1
-        if unbatched:
-            data = Transition.batch([data])
-        batch_size, state_dim = data.state.shape
-        # sample state
-        sample_delta_states = np.random.randn(sample_num, batch_size, state_dim)
-        sample_delta_states = sample_delta_states / \
-            np.linalg.norm(sample_delta_states, axis=2, keepdims=True) * \
-            np.random.uniform(0.00001, self.lipschitz_confidence, size=(sample_num, batch_size, 1))
-        # sample_delta_states: [sample_num, batch_size, state_dim]
-        # states: [batch_size, state_dim]
-        sample_states = (sample_delta_states + data.state[None, :]).reshape(-1, state_dim)
-        actions = data.action[None, :].repeat(sample_num, axis=0).reshape(-1, self.env.action_space.shape[0])
-
-        Lx = self.jacobi_atx(sample_states, actions).reshape(sample_num, batch_size)
-        Lx = np.max(Lx, axis=0)
-
-        if unbatched:
-            Lx = Lx[0]
-        return Lx
-            
-    def jacobi_atx(self, state: np.ndarray, action: np.ndarray) -> np.ndarray:
-        # calculate the lipschitz constant of the dynamics function at (state, action)
-        unbatched = len(state.shape) == 1
-        if unbatched:
-            states = state[None, :]
-            actions = action[None, :]
-        else:
-            states = state
-            actions = action
-        batch_size, state_dim = states.shape
-        delta_d = 0.001
-        lipschitz_x = np.zeros((batch_size, state_dim, state_dim))
-        delta_x = np.eye(state_dim) * delta_d
-        delta_x = delta_x[None, :]
-        states = states[:, None, :]
-        actions = actions[:, None, :].repeat(state_dim, axis=1).reshape(-1, self.env.action_space.shape[0])
-        lipschitz_x = (
-            self.env.model_forward(
-                (states + delta_x).reshape(-1, state_dim), actions
-            ) - self.env.model_forward(
-                (states - delta_x).reshape(-1, state_dim), actions
-            )
-        ) / (2 * delta_d)
-        lipschitz_x = lipschitz_x.reshape(batch_size, state_dim, state_dim)
-        result = np.linalg.norm(lipschitz_x, ord=2, axis=(1,2)) 
-        if unbatched:
-            result = result[0]
-        return result
     
     @staticmethod
     def distance(state1: np.ndarray, state2: np.ndarray) -> float:
