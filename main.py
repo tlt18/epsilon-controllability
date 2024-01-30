@@ -13,7 +13,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_sample", type=int, default=1000, help="Number of samples")
     parser.add_argument("--env", type=str, default="Oscillator", help="env class name")
-    parser.add_argument("--epsilon", type=float, default=0.05, help="Epsilon value")
+    parser.add_argument("--epsilon", type=float, default=0.1, help="Epsilon value")
     parser.add_argument("--target_state", type=float, nargs='+', default=[0.0, 0.0], help="Target state")
     parser.add_argument("--lipschitz_confidence", type=float, default=0.2, help="Lipschitz confidence")
     parser.add_argument("--expand_mode", type=str, default="strict", help="Expand mode")
