@@ -41,8 +41,8 @@ class Oscillator(BaseEnv):
         u = action
         return np.array([
             self.state[0] + self.state[1] * self.dt,
-            self.state[1] + (-self.state[0]-self.state[1](1-self.state[0]**2)/2+ u) * self.dt
-        ], dtype=np.float32
+            self.state[1] + (-self.state[0]-self.state[1]*(1-self.state[0]**2)/2+ u[0]) * self.dt
+        ]
         )
 
     def model_forward(self, state, action):
@@ -52,7 +52,7 @@ class Oscillator(BaseEnv):
             action = action[None, :]
         next_state = np.stack([
             state[:, 0] + state[:, 1] * self.dt,
-            state[:, 1] + (-state[:, 0]-state[:, 1](1-state[:, 0]**2)/2+ action) * self.dt], axis=1)
+            state[:, 1] + (-state[:, 0]-state[:, 1]*(1-state[:, 0]**2)/2+ action[:, 0]) * self.dt], axis=1)
         if unbatched:
             next_state = next_state[0]
         return next_state
