@@ -77,7 +77,12 @@ class Transition:
     state: np.ndarray
     action: np.ndarray
     next_state: np.ndarray
-    lipschitz_x: np.ndarray = None
+    lipschitz_x: Optional[np.ndarray] = None
+    is_controllable: Optional[np.ndarray] = None
+
+    def __post_init__(self):
+        if self.is_controllable is None:
+            self.is_controllable = np.full(self.state.shape[0], False)
 
     def __len__(self):
         assert len(self.state.shape) > 0, "The data must be batched!"
@@ -91,6 +96,7 @@ class Transition:
             action = self.action[index],
             next_state = self.next_state[index],
             lipschitz_x = self.lipschitz_x[index] if self.lipschitz_x is not None else None,
+            is_controllable = self.is_controllable[index],
         )
 
     @staticmethod
@@ -100,6 +106,7 @@ class Transition:
             action = np.array([transition.action for transition in transitionList]),
             next_state = np.array([transition.next_state for transition in transitionList]),
             lipschitz_x = np.array([transition.lipschitz_x for transition in transitionList]) if transitionList[0].lipschitz_x is not None else None,
+            is_controllable = np.array([transition.is_controllable for transition in transitionList]),
         )
 
 
@@ -113,7 +120,6 @@ class  ControllabilityTest:
             num_sample: int = 10000,
             lipschitz_confidence: float = 0.2,
             use_kd_tree: bool = False,
-            expand_mode: str = "strict",
             lips_estimate_mode: str = "sampling",
             expand_plot_interval: int = 1, 
             backward_plot_interval: int = 100,
@@ -127,17 +133,17 @@ class  ControllabilityTest:
         self.epsilon = epsilon
         self.lipschitz_confidence = lipschitz_confidence
         self.use_kd_tree = use_kd_tree
-        self.expand_mode = expand_mode
         self.expand_plot_interval = expand_plot_interval
         self.plot_expand_flag = plot_expand_flag
         self.plot_backward_flag = plot_backward_flag
         self.epsilon_controllable_set: NeighbourSet = None
         self.lipschitz_fx = getattr(self, f"lipschitz_fx_{lips_estimate_mode}")
         
-        self.fig_title = f"{env.__class__.__name__}/{target_state}state-{epsilon}epsilon-{num_sample}samples-{expand_mode}-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.fig_title = f"{env.__class__.__name__}/{target_state}state-{epsilon}epsilon-{num_sample}samples-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.plot_utils: PlotUtils = PlotUtils(
             obs_space = self.env.observation_space, 
             action_space = self.env.action_space,
+            orgin_state = self.target_state,
             orgin_radius = self.epsilon,
             fig_title = self.fig_title,
             backward_plot_interval = backward_plot_interval,
@@ -168,26 +174,25 @@ class  ControllabilityTest:
         
         # Step 1: Find all the states in the buffer that belong to the neighborhood set
         if self.use_kd_tree:
-            data_in_neighbourhood = deepcopy(self.dataset[self.next_state_kdtree.query_radius(neighbor.centered_state.reshape(1, -1), neighbor.radius).item()])
+            idx_neighbourhood = self.next_state_kdtree.query_radius(neighbor.centered_state.reshape(1, -1), neighbor.radius).item()
         else:
-            data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.next_state, neighbor.centered_state) <= neighbor.radius])
+            idx_neighbourhood = self.distance(self.dataset.next_state, neighbor.centered_state) <= neighbor.radius
+        data_in_neighbourhood = deepcopy(self.dataset[idx_neighbourhood])
+        self.dataset.is_controllable[idx_neighbourhood] = np.ones_like(self.dataset.is_controllable[idx_neighbourhood], dtype=bool)
 
         # Step 2: one-step backward expand
         if len(data_in_neighbourhood) == 0:
             return [], []
         else:
-            if self.expand_mode == "strict":
-                r_state = np.minimum(
-                        self.lipschitz_confidence, 
-                        (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) /\
-                        data_in_neighbourhood.lipschitz_x
-                )
-                r_next_state = neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)
-            elif self.expand_mode == "loose":
-                r_state = self.epsilon * np.ones(len(data_in_neighbourhood))
-                r_next_state = self.epsilon * np.ones(len(data_in_neighbourhood))
-            else:
-                raise NotImplementedError("expand mode is not implemented!")
+            r_state = np.minimum(
+                    self.lipschitz_confidence, 
+                    (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) /\
+                    data_in_neighbourhood.lipschitz_x
+            )
+            r_next_state = neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)
+            # For loose mode:
+            # r_state = self.epsilon * np.ones(len(data_in_neighbourhood))
+            # r_next_state = self.epsilon * np.ones(len(data_in_neighbourhood))
             return NeighbourSet(
                 centered_state = data_in_neighbourhood.state,
                 radius = r_state,
@@ -207,7 +212,6 @@ class  ControllabilityTest:
         assert self.epsilon_controllable_set == None, "The epsilon controllable list is not empty!"
         expand_counter = 0
         fig, ax = None, None
-        self.plot_utils.set_orgin_state(state)
 
         self.epsilon_controllable_set = NeighbourSet.batch([NeighbourSet(state, epsilon)])
         # until all the neighbor sets are visited
@@ -282,6 +286,7 @@ class  ControllabilityTest:
         with Timeit("plot sample time"):
             os.makedirs(FILEPATH + f"/figs/{self.fig_title}", exist_ok=True)
             self.plot_utils.plot_sample(self.dataset)
+            self.plot_utils.plot_controllable_data(self.dataset)
         
         self.save_epsilon_controllable_set()
 

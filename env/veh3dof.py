@@ -99,7 +99,7 @@ class Veh3DoFwoControl(Veh3DoF):
         self.action_space = spaces.Box(low=-0.0, high=0.0, shape=(2, ), dtype=np.float32)
 
     def get_next_state(self, action):
-        return super().get_next_state(self.state, np.zeros_like(action))
+        return super().get_next_state(np.zeros_like(action))
 
     def model_forward(self, state, action):
         return super().model_forward(state, np.zeros_like(action))

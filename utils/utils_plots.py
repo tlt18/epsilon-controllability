@@ -11,6 +11,7 @@ class PlotUtils():
             self, 
             obs_space, 
             action_space,
+            orgin_state,
             orgin_radius,
             fig_title,
             backward_plot_interval=100,
@@ -18,6 +19,7 @@ class PlotUtils():
         self.obs_space = obs_space
         self.action_space = action_space
         self.backward_counter = 0
+        self.orgin_state = orgin_state
         self.orgin_radius = orgin_radius
         self.fig_title = fig_title
         self.backward_plot_interval = backward_plot_interval
@@ -25,18 +27,17 @@ class PlotUtils():
             self.plot_epsilon_controllable_set = self.plot_epsilon_controllable_set_2D
             self.plot_backward = self.plot_backward_2D
             self.plot_sample = self.plot_sample_2D
+            self.plot_controllable_data = self.plot_controllable_data_2D
         elif obs_space.shape[0] == 3:
             self.plot_epsilon_controllable_set = self.plot_epsilon_controllable_set_3D
             self.plot_backward = self.plot_backward_3D
             self.plot_sample = self.plot_sample_3D
+            self.plot_controllable_data = self.plot_controllable_data_3D
         else:
             self.plot_epsilon_controllable_set = self.empty_function
             self.plot_backward = self.empty_function
             self.plot_sample = self.empty_function
             print("Warning: obs_space.shape[0] is not 2 or 3, plot_epsilon_controllable_set, plot_backward and plot_sample are not defined.")
-
-    def set_orgin_state(self, orgin_state):
-        self.orgin_state = orgin_state
 
     def plot_epsilon_controllable_set_2D(self, epsilon_controllable_list, expand_counter: int):
         plt.figure()
@@ -190,6 +191,31 @@ class PlotUtils():
         ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
         ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
         plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/sample.png"))
+        plt.close()
+
+    def plot_controllable_data_2D(self, dataset):
+        controllable_data = dataset[dataset.is_controllable == True]
+        plt.figure()
+        plt.scatter(controllable_data.state[:, 0], controllable_data.state[:, 1], marker='o', color='cornflowerblue', s=1)
+        plt.axis('equal')
+        plt.xlabel("state1")
+        plt.ylabel("state2")
+        plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/controllable_data.png"))
+        plt.close()
+
+    def plot_controllable_data_3D(self, dataset):
+        controllable_data = dataset[dataset.is_controllable == True]
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(controllable_data.state[:, 0], controllable_data.state[:, 1], controllable_data.state[:, 2], marker='o', color='cornflowerblue', s=1)
+        ax.set_box_aspect([1,1,1])
+        ax.set_xlabel('state1')
+        ax.set_ylabel('state2')
+        ax.set_zlabel('state3')
+        ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
+        ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
+        ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
+        plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/controllable_data.png"))
         plt.close()
 
     def save_figs(self, fig, ax):
