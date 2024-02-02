@@ -164,19 +164,25 @@ class  ControllabilityTest:
             self.state_kdtree = KDTree(self.dataset.state, leaf_size=40, metric='euclidean')
             self.next_state_kdtree = KDTree(self.dataset.next_state, leaf_size=40, metric='euclidean')
 
-    def backward_expand(self, neighbor: NeighbourSet) -> Tuple[NeighbourSet, NeighbourSet]:
+    def backward_expand(self, neighbor: NeighbourSet, center_only: bool = False) -> Tuple[NeighbourSet, NeighbourSet]:
         '''
         :param neighbor (NeighbourSet): the neighbor set to be expanded
+        :param center_only (bool): get the state in dataset that is in the neighborhood of the center state only
         :return (Tuple[List[NeighbourSet], List[NeighbourSet]]): the expanded neighbor set and last neighbor set
         '''
         assert not neighbor.visited, "The neighbor set has been visited!"
         neighbor.visited = True
         
         # Step 1: Find all the states in the buffer that belong to the neighborhood set
-        if self.use_kd_tree:
-            idx_neighbourhood = self.next_state_kdtree.query_radius(neighbor.centered_state.reshape(1, -1), neighbor.radius).item()
+        if center_only:
+            radius_query = 0.0
         else:
-            idx_neighbourhood = self.distance(self.dataset.next_state, neighbor.centered_state) <= neighbor.radius
+            radius_query = neighbor.radius
+
+        if self.use_kd_tree:
+            idx_neighbourhood = self.next_state_kdtree.query_radius(neighbor.centered_state.reshape(1, -1), radius_query).item()
+        else:
+            idx_neighbourhood = self.distance(self.dataset.next_state, neighbor.centered_state) <= radius_query
         data_in_neighbourhood = deepcopy(self.dataset[idx_neighbourhood])
         self.dataset.is_controllable[idx_neighbourhood] = np.ones_like(self.dataset.is_controllable[idx_neighbourhood], dtype=bool)
 
@@ -225,6 +231,7 @@ class  ControllabilityTest:
 
                 neighbor = self.epsilon_controllable_set[idx_set]
                 if not neighbor.visited:
+                    # expand_neighbor_set, last_neighbor_set = self.backward_expand(neighbor, center_only=(idx_set!=0))
                     expand_neighbor_set, last_neighbor_set = self.backward_expand(neighbor)
                     self.epsilon_controllable_set[idx_set] = neighbor # set visited = True
                     for idx_expland, expand_neighbor in enumerate(expand_neighbor_set):
@@ -233,9 +240,9 @@ class  ControllabilityTest:
                             self.epsilon_controllable_set.append(expand_neighbor)
                             new_neighbor_num += 1
                         elif relation == "set_in_expand":
-                            # If you do not use fliter, only the elements after the current point are deleted.
-                            # Pro: overwritten neighbors are removed from the collection.
-                            # Con: the iteration starts from the beginning after the iteration ends.
+                            # If you use fliter, only the elements after the current point are deleted.
+                            # Pro: only one iteration.
+                            # Con: repeated points stay in the set.
                             idx_dellist = list(filter(lambda x: x > idx_set, idx_inlist))
                             del self.epsilon_controllable_set[idx_dellist]
                             self.epsilon_controllable_set.append(expand_neighbor)

@@ -198,6 +198,8 @@ class PlotUtils():
         plt.figure()
         plt.scatter(controllable_data.state[:, 0], controllable_data.state[:, 1], marker='o', color='cornflowerblue', s=1)
         plt.axis('equal')
+        plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
+        plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
         plt.xlabel("state1")
         plt.ylabel("state2")
         plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/controllable_data.png"))

@@ -32,9 +32,6 @@ if __name__ == "__main__":
     )
     test.sample()
 
-
-
-
     for _ in range(5):
         state = env.observation_space.sample()
         action = env.action_space.sample()
@@ -45,7 +42,7 @@ if __name__ == "__main__":
         with Timeit("lipschitz_fx_optimizing_qp"):
             lips_by_opt_qp = test.lipschitz_fx_optimizing_qp(transition)
         with Timeit("lipschitz_fx_optimizing_lp"):
-            lips_by_opt_lp = test.lipschitz_fx_optimizing_qp(transition)
+            lips_by_opt_lp = test.lipschitz_fx_optimizing_lp(transition)
         with Timeit("lipschitz_fx_overestimating"):
             lips_by_maxdist = test.lipschitz_fx_maxdistance(transition)
         print("-" * 50)
