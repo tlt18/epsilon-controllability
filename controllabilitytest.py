@@ -259,7 +259,7 @@ class  ControllabilityTest:
                                 ax=ax
                             )
                     if self.plot_expand_flag and expand_counter%self.expand_plot_interval == 0:
-                        self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter)
+                        self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter, self.dataset, self.target_state)
                     expand_counter += 1
                     if idx_set % 100 == 0 or idx_set == len(self.epsilon_controllable_set) - 1:
                         print("index in set: {}, new_neighbor_num: {}, total_controllable_num: {}, current radius: {}"
@@ -270,7 +270,7 @@ class  ControllabilityTest:
         if self.plot_backward_flag and fig is not None and ax is not None:
             self.plot_utils.save_figs(fig, ax)
         if self.plot_expand_flag:
-            self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter)
+            self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter, self.dataset, self.target_state)
 
     def estimate_lipschitz_constant(self):
         self.dataset.lipschitz_x = self.lipschitz_fx(self.dataset)
@@ -290,13 +290,21 @@ class  ControllabilityTest:
         with Timeit("calculate epsilon controllable set time"):
             self.get_epsilon_controllable_set(self.target_state, self.epsilon)
 
-        with Timeit("plot sample time"):
+        with Timeit("count controllable states"):
+            controllable_num, proportion = self.count_states()
+            file = open(FILEPATH + f"/figs/{self.fig_title}/count.txt", "w")
+            file.write("controllable_num:"+str(controllable_num)+"proportion:"+str(proportion))
+            file.close()
+        with Timeit("plot.py sample time"):
             os.makedirs(FILEPATH + f"/figs/{self.fig_title}", exist_ok=True)
             self.plot_utils.plot_sample(self.dataset)
             self.plot_utils.plot_controllable_data(self.dataset)
         
         self.save_epsilon_controllable_set()
 
+    def count_states(self):
+        controllable_num = np.sum(self.dataset.is_controllable==True)
+        return controllable_num, controllable_num/len(self.dataset)
     def save_epsilon_controllable_set(self):
         epsilon_controllable_set = np.concatenate(
             [

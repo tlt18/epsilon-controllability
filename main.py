@@ -4,18 +4,19 @@ from env.simpleocp import SimpleOCP, SimpleOCPwoControl
 from env.massspring import MassSpring, MassSpringwoControl
 from env.pendulum import Pendulum, PendulumwoControl
 from env.veh3dof import Veh3DoF, Veh3DoFwoControl
-
+from env.oscillator import Oscillator, OscillatorwoControl
 import numpy as np
 import argparse
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--num_sample", type=int, default=1000, help="Number of samples")
-    parser.add_argument("--env", type=str, default="MassSpringwoControl", help="env class name")
-    parser.add_argument("--epsilon", type=float, default=0.1, help="Epsilon value")
-    parser.add_argument("--target_state", type=float, nargs='+', default=[-0.25, 0.0], help="Target state")
+    parser.add_argument("--num_sample", type=int, default=2000, help="Number of samples")
+    parser.add_argument("--env", type=str, default="Veh3DoF", help="env class name")
+    parser.add_argument("--epsilon", type=float, default=0.1 , help="Epsilon value")
+    parser.add_argument("--target_state", type=float, nargs='+', default=[4.5 ,0.00, 0.0], help="Target state")
     parser.add_argument("--lipschitz_confidence", type=float, default=0.2, help="Lipschitz confidence")
+    parser.add_argument("--expand_mode", type=str, default="strict", help="Expand mode")
     args = parser.parse_args()
 
     env = eval(args.env)(seed = 1)
@@ -26,6 +27,7 @@ if __name__ == "__main__":
     print(f"epsilon: {args.epsilon}")
     print(f"target_state: {args.target_state}")
     print(f"lipschitz_confidence: {args.lipschitz_confidence}")
+    print(f"expand_mode: {args.expand_mode}")
     print(f"num_sample: {args.num_sample}")
 
     test = ControllabilityTest(
@@ -36,8 +38,9 @@ if __name__ == "__main__":
         num_sample=args.num_sample,
         lipschitz_confidence=args.lipschitz_confidence,
         use_kd_tree=True,
+        # expand_mode=args.expand_mode,
         lips_estimate_mode="sampling",
-        expand_plot_interval=10000,
+        expand_plot_interval=2000,
         backward_plot_interval=100000000000000,
         plot_expand_flag=True,
         plot_backward_flag=False,

@@ -10,6 +10,8 @@ from buffer import Buffer
 from env.massspring import MassSpring, MassSpringwoControl
 from env.simpleocp import SimpleOCP, SimpleOCPwoControl
 from env.pendulum import Pendulum, PendulumwoControl
+from env.oscillator import Oscillator, OscillatorwoControl
+from env.veh3dof import Veh3DoF, Veh3DoFwoControl
 from controllabilitytest import ControllabilityTest, Transition
 from utils.timeit import Timeit
 
@@ -188,7 +190,7 @@ if __name__ == "__main__":
     target_state = np.array([0.0, 0.0])
     lipschitz_confidence = 0.2
 
-    env_name = "MassSpring"
+    env_name = "Veh3DoF"
     env = eval(env_name)(seed = 1)
     buffer = Buffer(buffer_size = num_sample)
     test = LipsTest(
@@ -208,7 +210,7 @@ if __name__ == "__main__":
     test.sample()
 
     # Lipschitz constants @(state, action, next_state)
-    state = np.array([-0.1, 0.05])
+    state = np.array([-0.1, 0.1, 0.05])
     action = env.action_space.sample()
     next_state = env.model_forward(state, action)
     transition = Transition(state, action, next_state)
@@ -217,26 +219,26 @@ if __name__ == "__main__":
     next_state_dist, states_dist, actions_dist = test.cal_linear_constraint(transition)
     lips_by_sampling_x, lips_by_sampling_u = test.lipschitz_fx_sampling(transition)
 
-    # plot next_state_dist = X * state_dist + Y * action_dist in (X,Y) plane
+    # plot.py next_state_dist = X * state_dist + Y * action_dist in (X,Y) plane
     for i in range(len(next_state_dist)):
         if actions_dist[i] < 0.00001:
             plt.axvline(next_state_dist[i] / states_dist[i])
         X = np.linspace(0, next_state_dist[i] / states_dist[i], 100)
-        Y = (next_state_dist[i] - X * states_dist[i]) / actions_dist[i]
-        plt.plot(X, Y, color='#00B0F0')
+        Y = (next_state_dist[i] - X * states_dist[i]) / (actions_dist[i]+0.001)
+        plt.plot(X, Y, color='#00B0F0',)
     plt.plot(X, Y, color='#00B0F0', label = "linear constraint")
 
-    # plot 1/4 circle: X^2 + Y^2 = lips_by_opt_qp_x ** 2 + lips_by_opt_qp_u ** 2
+    # plot.py 1/4 circle: X^2 + Y^2 = lips_by_opt_qp_x ** 2 + lips_by_opt_qp_u ** 2
     X = np.linspace(0, np.sqrt(lips_by_opt_qp_x ** 2 + lips_by_opt_qp_u ** 2), 100)
     Y = np.sqrt(lips_by_opt_qp_x ** 2 + lips_by_opt_qp_u ** 2 - X ** 2)
     plt.plot(X, Y, color='#F59D56', label = "objective function", linewidth=2)
 
-    # plot possible Lips cone
+    # plot.py possible Lips cone
     max_lips = max(lips_by_opt_qp_x, lips_by_opt_qp_u)
     plt.plot([lips_by_sampling_x, lips_by_sampling_x], [lips_by_sampling_u, 2 * max_lips], color='#00B050', label = "Lips cone")
     plt.plot([lips_by_sampling_x, 2 * max_lips], [lips_by_sampling_u, lips_by_sampling_u], color='#00B050')
     
-    # plot point (lips_by_opt_qp_x, lips_by_opt_qp_u)
+    # plot.py point (lips_by_opt_qp_x, lips_by_opt_qp_u)
     plt.text(lips_by_opt_qp_x + 0.1, lips_by_opt_qp_u + 0.1, f"({lips_by_opt_qp_x:.2f}, {lips_by_opt_qp_u:.2f})", color='#F59D56', fontsize=12)
     plt.scatter(lips_by_opt_qp_x, lips_by_opt_qp_u, marker='*', color='#F59D56', s=100, zorder=3)
     plt.text(lips_by_sampling_x + 0.3, lips_by_sampling_u + 0.3, f"({lips_by_sampling_x:.2f}, {lips_by_sampling_u:.2f})", color='#00B050', fontsize=12)
@@ -249,5 +251,8 @@ if __name__ == "__main__":
     plt.xlabel("Lx")
     plt.ylabel("Lu")
 
-    plt.savefig(os.path.join(FILEPATH, "figs", "lipschitz", env_name + str(num_sample) + "lipschitz.png"), bbox_inches='tight', pad_inches=0.2)
+    plt.savefig(os.path.join(FILEPATH, "figs", "lipschitz", env_name + str(num_sample) + "lipschitzwo.png"), bbox_inches='tight', pad_inches=0.2)
+    # plt.savefig("lipschitz.pdf", bbox_inches='tight', pad_inches=0.2)
+    # plt.savefig(os.path.join(FILEPATH, f"figs/lipschitz/lips.pdf"))
+
 
