@@ -5,7 +5,7 @@ plt.figure()
 
 epsilon_list = np.arange(0.01, 0.11, 0.01)
 ratio_list = np.full(len(epsilon_list), 0.9996)
-ratio_list2 = np.array([0.9546,0.9974,0.9988,0.999,1,1,1,1,1,1])
+ratio_list2 = np.array([0.0018,0.1402,0.8576,0.9876,0.9984,0.9996,0.9998,1.0,1,1])
 plt.plot(epsilon_list, ratio_list2, ls='-', color=(1, 204/255, 153/255), marker='^',label='target state=[0.0,0.0]')
 # plt.plot(epsilon_list, ratio_list2, ls='--', color='red', marker='s',label='target state=[-0.25,0.0]')
         # # plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color='cornflowerblue', s=1)

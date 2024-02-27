@@ -25,7 +25,7 @@ class Pendulum(BaseEnv):
         self.state = self.get_next_state(action)
         reward = 0
         self.step_count += 1
-        done = self.done() or self.step_count >= self.max_step
+        done = self.step_count >= self.max_step
         return self.state, reward, done, {}
     
     def done(self):

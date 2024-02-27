@@ -65,8 +65,8 @@ class PlotUtils():
         )
 
         # plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color='cornflowerblue', s=1)
-        plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color='red', s=1)
-        plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color='red', s=1)
+        plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color=(247/255,86/255,59/255), s=1)
+        plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color=(247/255,86/255,59/255), s=1)
 
         for neighbor in epsilon_controllable_list:
             circle = plt.Circle(neighbor.centered_state, neighbor.radius, color='cornflowerblue', fill=True, alpha=0.2)
@@ -77,8 +77,8 @@ class PlotUtils():
         plt.scatter(target_state[0], target_state[1], color='yellow', label='target state', marker='*')
 
         plt.axis('equal')
-        plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
-        plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
+        # plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
+        # plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
         plt.xlabel("state-1")
         plt.ylabel("state-2")
         # plt.title(f"expand_{expand_counter}")
@@ -214,18 +214,18 @@ class PlotUtils():
                 transitions[k].state[1], 
                 transitions[k].next_state[0] - transitions[k].state[0], 
                 transitions[k].next_state[1] - transitions[k].state[1], 
-                color='cornflowerblue',
+                color=(1, 204/255, 153/255),
                 width = 0.001,
                 head_width = 0.02,
             )
-        plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color='red', s=1)
-        plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color='red', label='state point', s=0.8)
+        plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color=(247/255,86/255,59/255), s=1)
+        plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color=(247/255,86/255,59/255), label='state point', s=0.8)
         plt.arrow(
             transitions[0].state[0],
             transitions[0].state[1],
             transitions[0].next_state[0] - transitions[0].state[0],
             transitions[0].next_state[1] - transitions[0].state[1],
-            color='cornflowerblue',
+            color=(1, 204/255, 153/255),
             label='state transfer function',
             width=0.001,
 

@@ -7,7 +7,7 @@ from env.env_base import BaseEnv
 
 
 class MassSpring(BaseEnv):
-    def __init__(self, seed: Optional[int] = None, max_step: int = 200):
+    def __init__(self, seed: Optional[int] = None, max_step: int = 30):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1, ), dtype=np.float32)
         # TODO: check the range of the state space
         low = np.array([-1, -1], dtype=np.float32)
@@ -26,6 +26,7 @@ class MassSpring(BaseEnv):
         reward = 0
         self.step_count += 1
         done = self.done() or self.step_count >= self.max_step
+        done = self.step_count >= self.max_step
         return self.state, reward, done, {}
     
     def done(self):
@@ -65,7 +66,7 @@ class MassSpring(BaseEnv):
 
 
 class MassSpringwoControl(MassSpring):
-    def __init__(self, seed: int = None, max_step: int = 200):
+    def __init__(self, seed: int = None, max_step: int = 30):
         super().__init__(seed, max_step)
         self.action_space = spaces.Box(low=-0.0, high=0.0, shape=(1, ), dtype=np.float32)
 
