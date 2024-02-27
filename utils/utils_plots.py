@@ -41,41 +41,37 @@ class PlotUtils():
 
     def plot_epsilon_controllable_set_2D(self, epsilon_controllable_list, expand_counter: int, transitions,target_state):
         plt.figure()
-
-        for k in range(len(transitions)):
-            # plt.plot.py([sample_list[k][0][0], sample_list[k][3][0]], [sample_list[k][0][1], sample_list[k][3][1]], color='lightgray', linewidth=0.5)
-            plt.arrow(
-                transitions[k].state[0],
-                transitions[k].state[1],
-                transitions[k].next_state[0] - transitions[k].state[0],
-                transitions[k].next_state[1] - transitions[k].state[1],
-                color=(1, 204/255, 153/255),
-                width = 0.002,
-                head_width = 0.02,
-            )
-        plt.arrow(
-            transitions[0].state[0],
-            transitions[0].state[1],
-            transitions[0].next_state[0] - transitions[0].state[0],
-            transitions[0].next_state[1] - transitions[0].state[1],
-            color=(1, 204/255, 153/255),
-            label='state transfer function',
-            width=0.002,
-            head_width=0.02,
-        )
-
         # plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color='cornflowerblue', s=1)
-        plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color=(247/255,86/255,59/255), s=1)
-        plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color=(247/255,86/255,59/255), s=1)
-
+        # for k in range(len(transitions)):
+        #     # plt.plot.py([sample_list[k][0][0], sample_list[k][3][0]], [sample_list[k][0][1], sample_list[k][3][1]], color='lightgray', linewidth=0.5)
+        #     plt.arrow(
+        #         transitions[k].state[0],
+        #         transitions[k].state[1],
+        #         transitions[k].next_state[0] - transitions[k].state[0],
+        #         transitions[k].next_state[1] - transitions[k].state[1],
+        #         color=(1, 204 / 255, 153 / 255),
+        #         width=0.002,
+        #         head_width=0.02,
+        #     )
+        # plt.arrow(
+        #     transitions[0].state[0],
+        #     transitions[0].state[1],
+        #     transitions[0].next_state[0] - transitions[0].state[0],
+        #     transitions[0].next_state[1] - transitions[0].state[1],
+        #     color=(1, 204 / 255, 153 / 255),
+        #     label='state transfer function',
+        #     width=0.002,
+        #     head_width=0.02,
+        # )
+        # plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color=(247/255,86/255,59/255), s=1)
+        # plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color=(247/255,86/255,59/255),label="state point", s=1)
         for neighbor in epsilon_controllable_list:
             circle = plt.Circle(neighbor.centered_state, neighbor.radius, color='cornflowerblue', fill=True, alpha=0.2)
             plt.gca().add_patch(circle)
         # circle2 = plt.Circle((target_state[0], target_state[1]), 0.05, color='cornflowerblue', fill=True, alpha=0.2)
         # plt.add_patch(circle2)
-        plt.plot(target_state[0]+0.05, target_state[1]+0.05, marker='o', markersize=10, color='cornflowerblue', label='epsilon controllable set')
+        # plt.plot(target_state[0]+0.05, target_state[1]+0.05, marker='o', markersize=10, color='cornflowerblue', label='epsilon controllable set')
         plt.scatter(target_state[0], target_state[1], color='yellow', label='target state', marker='*')
-
         plt.axis('equal')
         # plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
         # plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
@@ -124,7 +120,7 @@ class PlotUtils():
             y = neighbor.centered_state[1] + neighbor.radius * np.outer(np.sin(u), np.sin(v))
             z = neighbor.centered_state[2] + neighbor.radius * np.outer(np.ones(np.size(u)), np.cos(v))
             ax.plot_surface(x, y, z, color='dodgerblue', alpha=0.4)
-            ax.set_box_aspect([1,1,1])
+            # ax.set_box_aspect([1,1,1])
         ax.set_xlabel('state-1')
         ax.set_ylabel('state-2')
         ax.set_zlabel('state-3')
@@ -132,7 +128,7 @@ class PlotUtils():
         ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
         ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
         plt.legend()
-        plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/epsilon_controllable_set/{expand_counter}.pdf"))
+        plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/epsilon_controllable_set/{expand_counter}.png"))
         plt.close()
 
     def plot_backward_2D(self, state, r, next_state, next_r, fig=None, ax=None):
@@ -207,19 +203,18 @@ class PlotUtils():
         # plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
         # plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
         # plot.py line with arrow
+
         for k in range(len(transitions)):
             # plt.plot.py([sample_list[k][0][0], sample_list[k][3][0]], [sample_list[k][0][1], sample_list[k][3][1]], color='lightgray', linewidth=0.5)
             plt.arrow(
-                transitions[k].state[0], 
-                transitions[k].state[1], 
-                transitions[k].next_state[0] - transitions[k].state[0], 
-                transitions[k].next_state[1] - transitions[k].state[1], 
+                transitions[k].state[0],
+                transitions[k].state[1],
+                transitions[k].next_state[0] - transitions[k].state[0],
+                transitions[k].next_state[1] - transitions[k].state[1],
                 color=(1, 204/255, 153/255),
                 width = 0.001,
                 head_width = 0.02,
             )
-        plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color=(247/255,86/255,59/255), s=1)
-        plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color=(247/255,86/255,59/255), label='state point', s=0.8)
         plt.arrow(
             transitions[0].state[0],
             transitions[0].state[1],
@@ -231,13 +226,16 @@ class PlotUtils():
 
             head_width=0.02,
         )
+        plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color=(247/255,86/255,59/255), s=1)
+        plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color=(247/255,86/255,59/255), label='state point', s=0.8)
         plt.axis('equal')
         plt.xlabel("state-1")
         plt.ylabel("state-2")
         plt.legend()
         plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/sample.pdf"))
         plt.close()
-    
+
+
     def plot_sample_3D(self, transitions):
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
@@ -269,7 +267,7 @@ class PlotUtils():
         ax.scatter(transitions.state[:, 0], transitions.state[:, 1], transitions.state[:, 2], marker='o', color='red', s=1)
         ax.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], transitions.next_state[:, 2], marker='o', color='red', label='state point', s=0.8)
 
-        ax.set_box_aspect([1,1,1])
+        # ax.set_box_aspect([1,1,1])
         ax.set_xlabel('state-1')
         ax.set_ylabel('state-2')
         ax.set_zlabel('state-3')
@@ -296,7 +294,7 @@ class PlotUtils():
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(controllable_data.state[:, 0], controllable_data.state[:, 1], controllable_data.state[:, 2], marker='o', color='cornflowerblue', s=1)
-        ax.set_box_aspect([1,1,1])
+        # ax.set_box_aspect([1,1,1])
         ax.set_xlabel('state1')
         ax.set_ylabel('state2')
         ax.set_zlabel('state3')
