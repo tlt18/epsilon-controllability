@@ -26,9 +26,11 @@ class LipsTest(ControllabilityTest):
         lipschitz_confidence = self.lipschitz_confidence
         while True:
             if self.use_kd_tree:
-                data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(data.state.reshape(1, -1), lipschitz_confidence).item()])
+                data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(data.state.reshape(1, -1),
+                                                                                             lipschitz_confidence).item()])
             else:
-                data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, data.state) <= lipschitz_confidence])
+                data_in_neighbourhood = deepcopy(
+                    self.dataset[self.distance(self.dataset.state, data.state) <= lipschitz_confidence])
             if len(data_in_neighbourhood) > 0:
                 break
             else:
@@ -41,7 +43,7 @@ class LipsTest(ControllabilityTest):
         print("sample_num: ", len(data_in_neighbourhood))
         # next_state_dist <= Lx * state_dist + Lu*action_dist
         return next_state_dist, states_dist, actions_dist
-        
+
     def lipschitz_fx_optimizing_qp(self, data: Transition) -> np.ndarray:
         # estimate the lipschitz constant by QP
         unbatched = len(data.state.shape) == 1
@@ -54,9 +56,11 @@ class LipsTest(ControllabilityTest):
             lipschitz_confidence = self.lipschitz_confidence
             while True:
                 if self.use_kd_tree:
-                    data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(single_transition.state.reshape(1, -1), lipschitz_confidence).item()])
+                    data_in_neighbourhood = deepcopy(self.dataset[self.state_kdtree.query_radius(
+                        single_transition.state.reshape(1, -1), lipschitz_confidence).item()])
                 else:
-                    data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state, single_transition.state) <= lipschitz_confidence])
+                    data_in_neighbourhood = deepcopy(self.dataset[self.distance(self.dataset.state,
+                                                                                single_transition.state) <= lipschitz_confidence])
                 if len(data_in_neighbourhood) > 0:
                     break
                 else:
@@ -65,11 +69,11 @@ class LipsTest(ControllabilityTest):
             next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, data.next_state))
             states_negdist = - self.distance(data_in_neighbourhood.state, data.state)
             actions_negdist = - self.distance(data_in_neighbourhood.action, data.action)
-            concat_negdist = np.stack([states_negdist, actions_negdist], axis = 0)
+            concat_negdist = np.stack([states_negdist, actions_negdist], axis=0)
 
             # solve QP: min Lx**2 + Lu**2, s.t. next_state_dist <= Lx * state_dist + Lu*action_dist
             P = cvxopt.matrix([
-                [1.0, 0.0], 
+                [1.0, 0.0],
                 [0.0, 1.0]
             ])
             q = cvxopt.matrix([0.0, 0.0])
@@ -88,7 +92,7 @@ class LipsTest(ControllabilityTest):
             lipschitz_x = lipschitz_x[0]
             lipschitz_u = lipschitz_u[0]
         return lipschitz_x, lipschitz_u
-    
+
     def lipschitz_fx_sampling(self, data: Transition) -> np.ndarray:
         # calculate the lipschitz constant by sampling
         sample_num = 1000
@@ -99,8 +103,8 @@ class LipsTest(ControllabilityTest):
         # sample state
         sample_delta_states = np.random.randn(sample_num, batch_size, state_dim)
         sample_delta_states = sample_delta_states / \
-            np.linalg.norm(sample_delta_states, axis=2, keepdims=True) * \
-            np.random.uniform(0.00001, self.lipschitz_confidence, size=(sample_num, batch_size, 1))
+                              np.linalg.norm(sample_delta_states, axis=2, keepdims=True) * \
+                              np.random.uniform(0.00001, self.lipschitz_confidence, size=(sample_num, batch_size, 1))
         # sample_delta_states: [sample_num, batch_size, state_dim]
         # states: [batch_size, state_dim]
         sample_states = (sample_delta_states + data.state[None, :]).reshape(-1, state_dim)
@@ -115,7 +119,7 @@ class LipsTest(ControllabilityTest):
             Lx = Lx[0]
             Lu = Lu[0]
         return Lx, Lu
-            
+
     def jacobi_atx(self, state: np.ndarray, action: np.ndarray) -> np.ndarray:
         # calculate the lipschitz constant of the dynamics function at (state, action)
         unbatched = len(state.shape) == 1
@@ -133,18 +137,18 @@ class LipsTest(ControllabilityTest):
         states = states[:, None, :]
         actions = actions[:, None, :].repeat(state_dim, axis=1).reshape(-1, self.env.action_space.shape[0])
         lipschitz_x = (
-            self.env.model_forward(
-                (states + delta_x).reshape(-1, state_dim), actions
-            ) - self.env.model_forward(
-                (states - delta_x).reshape(-1, state_dim), actions
-            )
-        ) / (2 * delta_d)
+                              self.env.model_forward(
+                                  (states + delta_x).reshape(-1, state_dim), actions
+                              ) - self.env.model_forward(
+                          (states - delta_x).reshape(-1, state_dim), actions
+                      )
+                      ) / (2 * delta_d)
         lipschitz_x = lipschitz_x.reshape(batch_size, state_dim, state_dim)
-        result = np.linalg.norm(lipschitz_x, ord=2, axis=(1,2)) 
+        result = np.linalg.norm(lipschitz_x, ord=2, axis=(1, 2))
         if unbatched:
             result = result[0]
         return result
-    
+
     def jacobi_atu(self, state: np.ndarray, action: np.ndarray) -> np.ndarray:
         # calculate the lipschitz constant of the dynamics function at (state, action)
         unbatched = len(state.shape) == 1
@@ -162,26 +166,24 @@ class LipsTest(ControllabilityTest):
         states = states[:, None, :].repeat(action_dim, axis=1).reshape(-1, self.env.observation_space.shape[0])
         actions = actions[:, None, :]
         lipschitz_u = (
-            self.env.model_forward(
-                states, (actions + delta_u).reshape(-1, action_dim)
-            ) - self.env.model_forward(
-                states, (actions - delta_u).reshape(-1, action_dim)
-            )
-        ) / (2 * delta_d)
+                              self.env.model_forward(
+                                  states, (actions + delta_u).reshape(-1, action_dim)
+                              ) - self.env.model_forward(
+                          states, (actions - delta_u).reshape(-1, action_dim)
+                      )
+                      ) / (2 * delta_d)
         lipschitz_u = lipschitz_u.reshape(batch_size, action_dim, self.env.observation_space.shape[0])
-        result = np.linalg.norm(lipschitz_u, ord=2, axis=(1,2)) 
+        result = np.linalg.norm(lipschitz_u, ord=2, axis=(1, 2))
         if unbatched:
             result = result[0]
         return result
-        
-    
+
     @staticmethod
     def distance(state1: np.ndarray, state2: np.ndarray) -> float:
         if len(state1.shape) == 1 and len(state2.shape) == 1:
             return np.linalg.norm(state1 - state2, ord=2)
         else:
             return np.linalg.norm(state1 - state2, ord=2, axis=1)
-
 
 
 if __name__ == "__main__":
@@ -195,22 +197,22 @@ if __name__ == "__main__":
     #     'pgf.texsystem': 'xelatex',  # 或者 'pdflatex'，取决于你的 LaTeX 发行版
     # })
 
-    env_name = "OscillatorwoControl"
-    env = eval(env_name)(seed = 1)
-    buffer = Buffer(buffer_size = num_sample)
+    env_name = "Pendulum"
+    env = eval(env_name)(seed=1)
+    buffer = Buffer(buffer_size=num_sample)
     test = LipsTest(
-        env = env,
-        buffer = buffer,
-        target_state = target_state,
-        epsilon = epsilon, 
-        num_sample = num_sample,
-        lipschitz_confidence = lipschitz_confidence,
-        use_kd_tree = True,
-        lips_estimate_mode = "sampling",
-        expand_plot_interval = 1000, 
-        backward_plot_interval = 10000000000,
-        plot_expand_flag = False,
-        plot_backward_flag = False,
+        env=env,
+        buffer=buffer,
+        target_state=target_state,
+        epsilon=epsilon,
+        num_sample=num_sample,
+        lipschitz_confidence=lipschitz_confidence,
+        use_kd_tree=True,
+        lips_estimate_mode="sampling",
+        expand_plot_interval=1000,
+        backward_plot_interval=10000000000,
+        plot_expand_flag=False,
+        plot_backward_flag=False,
     )
     test.sample()
 
@@ -230,24 +232,27 @@ if __name__ == "__main__":
         if actions_dist[i] < 0.00001:
             plt.axvline(next_state_dist[i] / states_dist[i])
         X = np.linspace(0, next_state_dist[i] / states_dist[i], 100)
-        Y = (next_state_dist[i] - X * states_dist[i]) / (actions_dist[i]+0.001)
-        plt.plot(X, Y, color='#00B0F0',)
-    plt.plot(X, Y, color='#00B0F0', label = "linear constraint")
+        Y = (next_state_dist[i] - X * states_dist[i]) / (actions_dist[i] + 0.001)
+        plt.plot(X, Y, color='#00B0F0', )
+    plt.plot(X, Y, color='#00B0F0', label="linear constraint")
 
     # plot.py 1/4 circle: X^2 + Y^2 = lips_by_opt_qp_x ** 2 + lips_by_opt_qp_u ** 2
     X = np.linspace(0, np.sqrt(lips_by_opt_qp_x ** 2 + lips_by_opt_qp_u ** 2), 100)
     Y = np.sqrt(abs(lips_by_opt_qp_x ** 2 + lips_by_opt_qp_u ** 2 - X ** 2))
-    plt.plot(X, Y, color='#F59D56', label = "objective function", linewidth=2)
+    plt.plot(X, Y, color='#F59D56', label="objective function", linewidth=2)
 
     # plot.py possible Lips cone
     max_lips = max(lips_by_opt_qp_x, lips_by_opt_qp_u)
-    plt.plot([lips_by_sampling_x, lips_by_sampling_x], [lips_by_sampling_u, 2 * max_lips], color='#00B050', label = "Lips cone")
+    plt.plot([lips_by_sampling_x, lips_by_sampling_x], [lips_by_sampling_u, 2 * max_lips], color='#00B050',
+             label="Lips cone")
     plt.plot([lips_by_sampling_x, 2 * max_lips], [lips_by_sampling_u, lips_by_sampling_u], color='#00B050')
-    
+
     # plot.py point (lips_by_opt_qp_x, lips_by_opt_qp_u)
-    plt.text(lips_by_opt_qp_x + 0.1, lips_by_opt_qp_u + 0.1, f"({lips_by_opt_qp_x:.2f}, {lips_by_opt_qp_u:.2f})", color='#F59D56', fontsize=12)
+    plt.text(lips_by_opt_qp_x + 0.1, lips_by_opt_qp_u + 0.1, f"({lips_by_opt_qp_x:.2f}, {lips_by_opt_qp_u:.2f})",
+             color='#F59D56', fontsize=12)
     plt.scatter(lips_by_opt_qp_x, lips_by_opt_qp_u, marker='*', color='#F59D56', s=100, zorder=3)
-    plt.text(lips_by_sampling_x + 0.3, lips_by_sampling_u + 0.3, f"({lips_by_sampling_x:.2f}, {lips_by_sampling_u:.2f})", color='#00B050', fontsize=12)
+    plt.text(lips_by_sampling_x + 0.3, lips_by_sampling_u + 0.3,
+             f"({lips_by_sampling_x:.2f}, {lips_by_sampling_u:.2f})", color='#00B050', fontsize=12)
 
     plt.legend(loc='upper right')
     plt.xlim([-0.1, 2 * max_lips + 0.1])
@@ -257,8 +262,7 @@ if __name__ == "__main__":
     plt.xlabel("$L_\mathscr{x}$")
     plt.ylabel("$L_\mathscr{u}$")
 
-    plt.savefig(os.path.join(FILEPATH, "figs", "lipschitz", env_name + str(num_sample) + "lipschitz.png"), bbox_inches='tight', pad_inches=0.2)
+    plt.savefig(os.path.join(FILEPATH, "figs", "lipschitz", env_name + str(num_sample) + "lipschitz.png"),
+                bbox_inches='tight', pad_inches=0.2)
     # plt.savefig("lipschitz.pdf", bbox_inches='tight', pad_inches=0.2)
     # plt.savefig(os.path.join(FILEPATH, f"figs/lipschitz/lips.pdf"))
-
-

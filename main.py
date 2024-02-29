@@ -13,10 +13,10 @@ import argparse
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_sample", type=int, default=5000, help="Number of samples")
-    parser.add_argument("--env", type=str, default="Veh3DoF", help="env class name")
-    parser.add_argument("--epsilon", type=float, default=0.10, help="Epsilon value")
+    parser.add_argument("--env", type=str, default="PendulumwoControl", help="env class name")
+    parser.add_argument("--epsilon", type=float, default=1, help="Epsilon value")
     # parser.add_argument("--target_state", type=float, nargs='+', default=[0, 0, 30], help="Target state")
-    parser.add_argument("--target_state", type=float, nargs='+', default=[4.5,0.00, 0.0], help="Target state")
+    parser.add_argument("--target_state", type=float, nargs='+', default=[0.00, 0.0], help="Target state")
     parser.add_argument("--lipschitz_confidence", type=float, default=0.2, help="Lipschitz confidence")
     parser.add_argument("--expand_mode", type=str, default="strict", help="Expand mode")
     args = parser.parse_args()

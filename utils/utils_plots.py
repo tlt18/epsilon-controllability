@@ -41,30 +41,30 @@ class PlotUtils():
 
     def plot_epsilon_controllable_set_2D(self, epsilon_controllable_list, expand_counter: int, transitions,target_state):
         plt.figure()
-        # plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color='cornflowerblue', s=1)
-        # for k in range(len(transitions)):
-        #     # plt.plot.py([sample_list[k][0][0], sample_list[k][3][0]], [sample_list[k][0][1], sample_list[k][3][1]], color='lightgray', linewidth=0.5)
-        #     plt.arrow(
-        #         transitions[k].state[0],
-        #         transitions[k].state[1],
-        #         transitions[k].next_state[0] - transitions[k].state[0],
-        #         transitions[k].next_state[1] - transitions[k].state[1],
-        #         color=(1, 204 / 255, 153 / 255),
-        #         width=0.002,
-        #         head_width=0.02,
-        #     )
-        # plt.arrow(
-        #     transitions[0].state[0],
-        #     transitions[0].state[1],
-        #     transitions[0].next_state[0] - transitions[0].state[0],
-        #     transitions[0].next_state[1] - transitions[0].state[1],
-        #     color=(1, 204 / 255, 153 / 255),
-        #     label='state transfer function',
-        #     width=0.002,
-        #     head_width=0.02,
-        # )
-        # plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color=(247/255,86/255,59/255), s=1)
-        # plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color=(247/255,86/255,59/255),label="state point", s=1)
+        plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color='cornflowerblue', s=1)
+        for k in range(len(transitions)):
+            # plt.plot.py([sample_list[k][0][0], sample_list[k][3][0]], [sample_list[k][0][1], sample_list[k][3][1]], color='lightgray', linewidth=0.5)
+            plt.arrow(
+                transitions[k].state[0],
+                transitions[k].state[1],
+                transitions[k].next_state[0] - transitions[k].state[0],
+                transitions[k].next_state[1] - transitions[k].state[1],
+                color=(1, 204 / 255, 153 / 255),
+                width=0.002,
+                head_width=0.02,
+            )
+        plt.arrow(
+            transitions[0].state[0],
+            transitions[0].state[1],
+            transitions[0].next_state[0] - transitions[0].state[0],
+            transitions[0].next_state[1] - transitions[0].state[1],
+            color=(1, 204 / 255, 153 / 255),
+            label='state transfer function',
+            width=0.002,
+            head_width=0.02,
+        )
+        plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color=(247/255,86/255,59/255), s=1)
+        plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color=(247/255,86/255,59/255),label="state point", s=1)
         for neighbor in epsilon_controllable_list:
             circle = plt.Circle(neighbor.centered_state, neighbor.radius, color='cornflowerblue', fill=True, alpha=0.2)
             plt.gca().add_patch(circle)
@@ -72,11 +72,11 @@ class PlotUtils():
         # plt.add_patch(circle2)
         plt.plot(target_state[0]+0.05, target_state[1]+0.05, marker='o', markersize=10, color='cornflowerblue', label='epsilon controllable set')
         plt.scatter(target_state[0], target_state[1], color='yellow', label='target state', marker='*')
-        plt.axis('equal')
+        # plt.axis('equal')
         # plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
         # plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
-        plt.xlim([-4, 4.0])
-        plt.ylim([-4.0, 4.0])
+        plt.xlim([-2, 2.0])
+        # plt.ylim([-4.0, 4.0])
         plt.xlabel("state-1")
         plt.ylabel("state-2")
         # plt.title(f"expand_{expand_counter}")
@@ -202,8 +202,9 @@ class PlotUtils():
     
     def plot_sample_2D(self, transitions):
         plt.figure()
-        plt.xlim([-4.0, 4.0])
-        plt.ylim([-4.5, 4.5])
+        # plt.axis([-2, 2, -8, 8])
+        # plt.xlim([-2.0, 2.0])
+        # plt.ylim([-4.5, 4.5])
         # plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
         # plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
         # plot.py line with arrow
@@ -232,9 +233,12 @@ class PlotUtils():
         )
         plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color=(247/255,86/255,59/255), s=1)
         plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color=(247/255,86/255,59/255), label='state point', s=0.8)
-        plt.axis('equal')
+        # plt.axis('equal')
         plt.xlabel("state-1")
         plt.ylabel("state-2")
+        # plt.xlim([-3.0, 3.0])
+        # x_lim = plt.xlim([-2.0, 2.0])
+        # print("当前 x 轴范围为:", x_lim)
         plt.legend()
         plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/sample.pdf"))
         plt.close()
