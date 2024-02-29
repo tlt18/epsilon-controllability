@@ -7,7 +7,8 @@ from env.env_base import BaseEnv
 
 
 class Pendulum(BaseEnv):
-    def __init__(self, seed: Optional[int] = None, max_step: int = 30):
+    def __init__(self, seed: Optional[int] = None, ma
+        x_step: int = 30):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1, ), dtype=np.float32)
         low = np.array([-0.5, -0.5], dtype=np.float32)
         high = np.array([0.5, 0.5], dtype=np.float32)
