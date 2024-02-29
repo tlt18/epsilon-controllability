@@ -70,11 +70,13 @@ class PlotUtils():
             plt.gca().add_patch(circle)
         # circle2 = plt.Circle((target_state[0], target_state[1]), 0.05, color='cornflowerblue', fill=True, alpha=0.2)
         # plt.add_patch(circle2)
-        # plt.plot(target_state[0]+0.05, target_state[1]+0.05, marker='o', markersize=10, color='cornflowerblue', label='epsilon controllable set')
+        plt.plot(target_state[0]+0.05, target_state[1]+0.05, marker='o', markersize=10, color='cornflowerblue', label='epsilon controllable set')
         plt.scatter(target_state[0], target_state[1], color='yellow', label='target state', marker='*')
         plt.axis('equal')
         # plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
         # plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
+        plt.xlim([-4, 4.0])
+        plt.ylim([-4.0, 4.0])
         plt.xlabel("state-1")
         plt.ylabel("state-2")
         # plt.title(f"expand_{expand_counter}")
@@ -86,32 +88,32 @@ class PlotUtils():
     def plot_epsilon_controllable_set_3D(self, epsilon_controllable_list, expand_counter: int,transitions,target_state):
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        for k in range(len(transitions)):
-            ax.quiver(
-                transitions[k].state[0],
-                transitions[k].state[1],
-                transitions[k].state[2],
-                transitions[k].next_state[0] - transitions[k].state[0],
-                transitions[k].next_state[1] - transitions[k].state[1],
-                transitions[k].next_state[2] - transitions[k].state[2],
-                color=(1, 204/255, 153/255),
-                length=0.1,
-                normalize=True,
-            )
-        ax.quiver(
-            transitions[k].state[0],
-            transitions[k].state[1],
-            transitions[k].state[2],
-            transitions[k].next_state[0] - transitions[k].state[0],
-            transitions[k].next_state[1] - transitions[k].state[1],
-            transitions[k].next_state[2] - transitions[k].state[2],
-            color=(1, 204/255, 153/255),
-            label='state transfer function',
-            length=0.1,
-            normalize=True,
-        )
-        ax.scatter(transitions.state[:, 0], transitions.state[:, 1], transitions.state[:, 2], marker='o', color='red', s=1)
-        ax.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], transitions.next_state[:, 2], marker='o', color='red', label='state point', s=0.8)
+        # for k in range(len(transitions)):
+        #     ax.quiver(
+        #         transitions[k].state[0],
+        #         transitions[k].state[1],
+        #         transitions[k].state[2],
+        #         transitions[k].next_state[0] - transitions[k].state[0],
+        #         transitions[k].next_state[1] - transitions[k].state[1],
+        #         transitions[k].next_state[2] - transitions[k].state[2],
+        #         color=(1, 204/255, 153/255),
+        #         length=0.1,
+        #         normalize=True,
+        #     )
+        # ax.quiver(
+        #     transitions[k].state[0],
+        #     transitions[k].state[1],
+        #     transitions[k].state[2],
+        #     transitions[k].next_state[0] - transitions[k].state[0],
+        #     transitions[k].next_state[1] - transitions[k].state[1],
+        #     transitions[k].next_state[2] - transitions[k].state[2],
+        #     color=(1, 204/255, 153/255),
+        #     label='state transfer function',
+        #     length=0.1,
+        #     normalize=True,
+        # )
+        # ax.scatter(transitions.state[:, 0], transitions.state[:, 1], transitions.state[:, 2], marker='o', color='red', s=1)
+        # ax.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], transitions.next_state[:, 2], marker='o', color='red', label='state point', s=0.8)
         ax.scatter(target_state[0], target_state[1], target_state[2], marker='o', color='yellow', label='target state', s=1)
         u = np.linspace(0, 2 * np.pi, 100)
         v = np.linspace(0, np.pi, 100)
@@ -120,7 +122,7 @@ class PlotUtils():
             y = neighbor.centered_state[1] + neighbor.radius * np.outer(np.sin(u), np.sin(v))
             z = neighbor.centered_state[2] + neighbor.radius * np.outer(np.ones(np.size(u)), np.cos(v))
             ax.plot_surface(x, y, z, color='dodgerblue', alpha=0.4)
-            # ax.set_box_aspect([1,1,1])
+            ax.set_box_aspect([1,1,1])
         ax.set_xlabel('state-1')
         ax.set_ylabel('state-2')
         ax.set_zlabel('state-3')
@@ -200,6 +202,8 @@ class PlotUtils():
     
     def plot_sample_2D(self, transitions):
         plt.figure()
+        plt.xlim([-4.0, 4.0])
+        plt.ylim([-4.5, 4.5])
         # plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
         # plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
         # plot.py line with arrow

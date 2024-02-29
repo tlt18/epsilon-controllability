@@ -189,8 +189,13 @@ if __name__ == "__main__":
     epsilon = 0.05
     target_state = np.array([0.0, 0.0])
     lipschitz_confidence = 0.2
+    # plt.rcParams.update({
+    #     'text.usetex': True,
+    #     'text.latex.preamble': r'\usepackage{amsmath}',  # 这是一个示例，你也可以添加其他 LaTeX 包
+    #     'pgf.texsystem': 'xelatex',  # 或者 'pdflatex'，取决于你的 LaTeX 发行版
+    # })
 
-    env_name = "Veh3DoF"
+    env_name = "OscillatorwoControl"
     env = eval(env_name)(seed = 1)
     buffer = Buffer(buffer_size = num_sample)
     test = LipsTest(
@@ -210,7 +215,8 @@ if __name__ == "__main__":
     test.sample()
 
     # Lipschitz constants @(state, action, next_state)
-    state = np.array([-0.1, 0.1, 0.05])
+    state = np.array([0.1, 0.1])
+    # state = np.array([-0.1, 0.1, 0.05])
     action = env.action_space.sample()
     next_state = env.model_forward(state, action)
     transition = Transition(state, action, next_state)
@@ -218,7 +224,7 @@ if __name__ == "__main__":
     lips_by_opt_qp_x, lips_by_opt_qp_u = test.lipschitz_fx_optimizing_qp(transition)
     next_state_dist, states_dist, actions_dist = test.cal_linear_constraint(transition)
     lips_by_sampling_x, lips_by_sampling_u = test.lipschitz_fx_sampling(transition)
-
+    # plt.rcParams.update({'text.usetex': True})
     # plot.py next_state_dist = X * state_dist + Y * action_dist in (X,Y) plane
     for i in range(len(next_state_dist)):
         if actions_dist[i] < 0.00001:
@@ -230,7 +236,7 @@ if __name__ == "__main__":
 
     # plot.py 1/4 circle: X^2 + Y^2 = lips_by_opt_qp_x ** 2 + lips_by_opt_qp_u ** 2
     X = np.linspace(0, np.sqrt(lips_by_opt_qp_x ** 2 + lips_by_opt_qp_u ** 2), 100)
-    Y = np.sqrt(lips_by_opt_qp_x ** 2 + lips_by_opt_qp_u ** 2 - X ** 2)
+    Y = np.sqrt(abs(lips_by_opt_qp_x ** 2 + lips_by_opt_qp_u ** 2 - X ** 2))
     plt.plot(X, Y, color='#F59D56', label = "objective function", linewidth=2)
 
     # plot.py possible Lips cone
@@ -248,10 +254,10 @@ if __name__ == "__main__":
     plt.ylim([-0.1, 2 * max_lips + 0.1])
     plt.gca().set_aspect('equal', adjustable='box')
     # plt.title(f"num_sample: {num_sample}")
-    plt.xlabel("Lx")
-    plt.ylabel("Lu")
+    plt.xlabel("$L_\mathscr{x}$")
+    plt.ylabel("$L_\mathscr{u}$")
 
-    plt.savefig(os.path.join(FILEPATH, "figs", "lipschitz", env_name + str(num_sample) + "lipschitzwo.png"), bbox_inches='tight', pad_inches=0.2)
+    plt.savefig(os.path.join(FILEPATH, "figs", "lipschitz", env_name + str(num_sample) + "lipschitz.png"), bbox_inches='tight', pad_inches=0.2)
     # plt.savefig("lipschitz.pdf", bbox_inches='tight', pad_inches=0.2)
     # plt.savefig(os.path.join(FILEPATH, f"figs/lipschitz/lips.pdf"))
 

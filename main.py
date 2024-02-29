@@ -5,16 +5,17 @@ from env.massspring import MassSpring, MassSpringwoControl
 from env.pendulum import Pendulum, PendulumwoControl
 from env.veh3dof import Veh3DoF, Veh3DoFwoControl
 from env.oscillator import Oscillator, OscillatorwoControl
+from env.lorenz import Lorenz, LorenzwoControl
 import numpy as np
 import argparse
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--num_sample", type=int, default=5000, help="Number of samples")
-    parser.add_argument("--env", type=str, default="MassSpringwoControl", help="env class name")
-    parser.add_argument("--epsilon", type=float, default=0.05, help="Epsilon value")
-    parser.add_argument("--target_state", type=float, nargs='+', default=[0.0, 0.00], help="Target state")
+    parser.add_argument("--num_sample", type=int, default=2000, help="Number of samples")
+    parser.add_argument("--env", type=str, default="Lorenz", help="env class name")
+    parser.add_argument("--epsilon", type=float, default=0.20, help="Epsilon value")
+    parser.add_argument("--target_state", type=float, nargs='+', default=[0, 0, 30], help="Target state")
     # parser.add_argument("--target_state", type=float, nargs='+', default=[0.00, 0.0], help="Target state")
     parser.add_argument("--lipschitz_confidence", type=float, default=0.2, help="Lipschitz confidence")
     parser.add_argument("--expand_mode", type=str, default="strict", help="Expand mode")

@@ -259,6 +259,7 @@ class  ControllabilityTest:
                                 ax=ax
                             )
                     if self.plot_expand_flag and expand_counter%self.expand_plot_interval == 0:
+                        # pass
                         self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter, self.dataset, self.target_state)
                     expand_counter += 1
                     if idx_set % 100 == 0 or idx_set == len(self.epsilon_controllable_set) - 1:
@@ -270,6 +271,7 @@ class  ControllabilityTest:
         if self.plot_backward_flag and fig is not None and ax is not None:
             self.plot_utils.save_figs(fig, ax)
         if self.plot_expand_flag:
+            pass
             self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter, self.dataset, self.target_state)
 
     def estimate_lipschitz_constant(self):
