@@ -197,7 +197,7 @@ if __name__ == "__main__":
     #     'pgf.texsystem': 'xelatex',  # 或者 'pdflatex'，取决于你的 LaTeX 发行版
     # })
 
-    env_name = "Pendulum"
+    env_name = "MassSpring"
     env = eval(env_name)(seed=1)
     buffer = Buffer(buffer_size=num_sample)
     test = LipsTest(
@@ -234,33 +234,34 @@ if __name__ == "__main__":
         X = np.linspace(0, next_state_dist[i] / states_dist[i], 100)
         Y = (next_state_dist[i] - X * states_dist[i]) / (actions_dist[i] + 0.001)
         plt.plot(X, Y, color='#00B0F0', )
-    plt.plot(X, Y, color='#00B0F0', label="linear constraint")
+    plt.plot(X, Y, color='#00B0F0', label="linear constr")
 
     # plot.py 1/4 circle: X^2 + Y^2 = lips_by_opt_qp_x ** 2 + lips_by_opt_qp_u ** 2
     X = np.linspace(0, np.sqrt(lips_by_opt_qp_x ** 2 + lips_by_opt_qp_u ** 2), 100)
     Y = np.sqrt(abs(lips_by_opt_qp_x ** 2 + lips_by_opt_qp_u ** 2 - X ** 2))
-    plt.plot(X, Y, color='#F59D56', label="objective function", linewidth=2)
+    plt.plot(X, Y, color='#F59D56', label="objective func", linewidth=2)
 
     # plot.py possible Lips cone
     max_lips = max(lips_by_opt_qp_x, lips_by_opt_qp_u)
     plt.plot([lips_by_sampling_x, lips_by_sampling_x], [lips_by_sampling_u, 2 * max_lips], color='#00B050',
-             label="Lips cone")
+             label="Lipschitz cone")
     plt.plot([lips_by_sampling_x, 2 * max_lips], [lips_by_sampling_u, lips_by_sampling_u], color='#00B050')
 
     # plot.py point (lips_by_opt_qp_x, lips_by_opt_qp_u)
     plt.text(lips_by_opt_qp_x + 0.1, lips_by_opt_qp_u + 0.1, f"({lips_by_opt_qp_x:.2f}, {lips_by_opt_qp_u:.2f})",
-             color='#F59D56', fontsize=12)
-    plt.scatter(lips_by_opt_qp_x, lips_by_opt_qp_u, marker='*', color='#F59D56', s=100, zorder=3)
-    plt.text(lips_by_sampling_x + 0.3, lips_by_sampling_u + 0.3,
-             f"({lips_by_sampling_x:.2f}, {lips_by_sampling_u:.2f})", color='#00B050', fontsize=12)
+             color='#FF00FF', fontsize=12)
+    plt.scatter(lips_by_opt_qp_x, lips_by_opt_qp_u, marker='*', color='#FF00FF', s=100, zorder=3)
+    plt.text(lips_by_sampling_x + 0.1, lips_by_sampling_u + 0.1,
+             f"({lips_by_sampling_x:.2f}, {lips_by_sampling_u:.2f})", color='#FF0000', fontsize=12)
+    plt.plot(lips_by_sampling_x, lips_by_sampling_u, marker="o", fillstyle='none',color='#FF0000',markersize=10)
 
-    plt.legend(loc='upper right')
+    plt.legend(loc='upper right',fontsize=12)
     plt.xlim([-0.1, 2 * max_lips + 0.1])
     plt.ylim([-0.1, 2 * max_lips + 0.1])
     plt.gca().set_aspect('equal', adjustable='box')
     # plt.title(f"num_sample: {num_sample}")
-    plt.xlabel("$L_\mathscr{x}$")
-    plt.ylabel("$L_\mathscr{u}$")
+    plt.xlabel("$L_\mathscr{x}$",fontsize=12,fontname= 'Times New Roman')
+    plt.ylabel("$L_\mathscr{u}$",fontsize=12,fontname= 'Times New Roman')
 
     plt.savefig(os.path.join(FILEPATH, "figs", "lipschitz", env_name + str(num_sample) + "lipschitz.png"),
                 bbox_inches='tight', pad_inches=0.2)

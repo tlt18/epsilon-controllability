@@ -27,14 +27,14 @@ class Lorenz(BaseEnv):
         high = np.array([30, 30, 60], dtype=np.float32)
         self.observation_space = spaces.Box(low=low, high=high, shape=(3, ), dtype=np.float32)
         self.param = LorenzParam()
-        self.dt = 0.1
+        self.dt = 0.01
         super().__init__(seed, max_step)
 
     def step(self, action):
         self.state = self.get_next_state(action)
         reward = 0
         self.step_count += 1
-        done = self.done() or self.step_count >= self.max_step
+        done = self.step_count >= self.max_step
         return self.state, reward, done, {}
     
     def done(self):
