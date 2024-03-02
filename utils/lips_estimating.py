@@ -217,7 +217,7 @@ if __name__ == "__main__":
     test.sample()
 
     # Lipschitz constants @(state, action, next_state)
-    state = np.array([0.1, 0.1])
+    state = np.array([0.5, 0.5])
     # state = np.array([-0.1, 0.1, 0.05])
     action = env.action_space.sample()
     next_state = env.model_forward(state, action)

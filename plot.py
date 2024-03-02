@@ -50,6 +50,28 @@ plt.ylabel("Ratio between controllable points and sample points.")
 # plt.title("Ratio between controllable points and sample points in massspring")
 plt.legend()
 plt.show()
+coordinates = []
+values = []
+for x in range(-10, 11):
+    for y in range(-10, 11):
+        coordinates.append([x / 10, y / 10])
+with open("figs/MassSpring/count.txt", "r") as file:
+    for line in file:
+        # 将读取的行转换为具体的值，并添加到values列表中
+        value = float(line.strip())  # 假设文件中每行只包含一个数字，并且去除每行末尾的换行符
+        values.append(value)
+values = np.array(values).reshape(21,21)
+x = np.linspace(-1, 1, 21)
+y = np.linspace(-1, 1, 21)
+x, y = np.meshgrid(x, y)
+z = np.sin(np.sqrt(x**2 + y**2))
 
+# 绘制三维图
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+surf = ax.plot_surface(x, y, values, cmap='hot')  # 这里使用'hot'颜色映射，你可以根据需要选择不同的颜色映射
+fig.colorbar(surf)  # 添加颜色条
+plt.show()
+print(coordinates)
         # # plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/epsilon_controllable_set/{expand_counter}.pdf"))
         # plt.close()
