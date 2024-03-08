@@ -110,7 +110,7 @@ class Transition:
         )
 
 
-class  ControllabilityTest:
+class  ControllabilityTestforAll:
     def __init__(
             self, 
             env: gym.Env , 
@@ -259,27 +259,28 @@ class  ControllabilityTest:
                                 ax=ax
                             )
                     if self.plot_expand_flag and expand_counter%self.expand_plot_interval == 0:
-                        # pass
-                        self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter, self.dataset, self.target_state)
+                        pass
+                        # self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter, self.dataset, self.target_state)
                     expand_counter += 1
                     if idx_set % 100 == 0 or idx_set == len(self.epsilon_controllable_set) - 1:
-                        print("index in set: {}, new_neighbor_num: {}, total_controllable_num: {}, current radius: {}"
-                            .format(idx_set, new_neighbor_num, len(self.epsilon_controllable_set), neighbor.radius)
-                        )
+                        # print("index in set: {}, new_neighbor_num: {}, total_controllable_num: {}, current radius: {}"
+                        #     .format(idx_set, new_neighbor_num, len(self.epsilon_controllable_set), neighbor.radius)
+                        # )
                         new_neighbor_num = 0
                 idx_set += 1
         if self.plot_backward_flag and fig is not None and ax is not None:
             self.plot_utils.save_figs(fig, ax)
         if self.plot_expand_flag:
-            # pass
-            self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter, self.dataset, self.target_state)
+            pass
+            # self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter, self.dataset, self.target_state)
 
     def estimate_lipschitz_constant(self):
         self.dataset.lipschitz_x = self.lipschitz_fx(self.dataset)
 
     def run(self):
-        if self.plot_expand_flag:
-            os.makedirs(FILEPATH + f"/figs/{self.fig_title}/epsilon_controllable_set", exist_ok=True)
+        # if self.plot_expand_flag:
+        #
+        #     os.makedirs(FILEPATH + f"/figs/{self.fig_title}/epsilon_controllable_set", exist_ok=True)
         if self.plot_backward_flag:
             os.makedirs(FILEPATH + f"/figs/{self.fig_title}/expand_backward", exist_ok=True)
 
@@ -294,15 +295,16 @@ class  ControllabilityTest:
 
         with Timeit("count controllable states"):
             controllable_num, proportion = self.count_states()
-            file = open(FILEPATH + f"/figs/{self.fig_title}/count.txt", "w")
-            file.write("controllable_num:"+str(controllable_num)+"proportion:"+str(proportion))
+            file = open(FILEPATH + f"/figs/{self.env.__class__.__name__}/count.txt", "a")
+            # file.write("controllable_num: "+str(controllable_num)+" proportion: "+str(proportion)+"\n")
+            file.write(str(proportion)+"\n")
             file.close()
-        with Timeit("plot.py sample time"):
-            os.makedirs(FILEPATH + f"/figs/{self.fig_title}", exist_ok=True)
-            self.plot_utils.plot_sample(self.dataset)
-            self.plot_utils.plot_controllable_data(self.dataset)
+        # with Timeit("plot.py sample time"):
+        #     # os.makedirs(FILEPATH + f"/figs/{self.fig_title}", exist_ok=True)
+        #     # self.plot_utils.plot_sample(self.dataset)
+        #     # self.plot_utils.plot_controllable_data(self.dataset)
         
-        self.save_epsilon_controllable_set()
+        # self.save_epsilon_controllable_set()
 
     def count_states(self):
         controllable_num = np.sum(self.dataset.is_controllable==True)

@@ -42,43 +42,42 @@ class PlotUtils():
     def plot_epsilon_controllable_set_2D(self, epsilon_controllable_list, expand_counter: int, transitions,target_state):
         plt.figure()
         # plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color='cornflowerblue', s=1)
-        # for k in range(len(transitions)):
-        #     # plt.plot.py([sample_list[k][0][0], sample_list[k][3][0]], [sample_list[k][0][1], sample_list[k][3][1]], color='lightgray', linewidth=0.5)
-        #     plt.arrow(
-        #         transitions[k].state[0],
-        #         transitions[k].state[1],
-        #         transitions[k].next_state[0] - transitions[k].state[0],
-        #         transitions[k].next_state[1] - transitions[k].state[1],
-        #         color=(1, 204 / 255, 153 / 255),
-        #         width=0.002,
-        #         head_width=0.02,
-        #     )
-        # plt.arrow(
-        #     transitions[0].state[0],
-        #     transitions[0].state[1],
-        #     transitions[0].next_state[0] - transitions[0].state[0],
-        #     transitions[0].next_state[1] - transitions[0].state[1],
-        #     color=(1, 204 / 255, 153 / 255),
-        #     label='state transfer function',
-        #     width=0.002,
-        #     head_width=0.02,
-        # )
-        # plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color=(247/255,86/255,59/255), s=1)
-        # plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color=(247/255,86/255,59/255),label="state point", s=1)
+        for k in range(len(transitions)):
+            # plt.plot.py([sample_list[k][0][0], sample_list[k][3][0]], [sample_list[k][0][1], sample_list[k][3][1]], color='lightgray', linewidth=0.5)
+            plt.arrow(
+                transitions[k].state[0],
+                transitions[k].state[1],
+                transitions[k].next_state[0] - transitions[k].state[0],
+                transitions[k].next_state[1] - transitions[k].state[1],
+                color=(1, 204 / 255, 153 / 255),
+                width=0.002,
+                head_width=0.02,
+            )
+        plt.arrow(
+            transitions[0].state[0],
+            transitions[0].state[1],
+            transitions[0].next_state[0] - transitions[0].state[0],
+            transitions[0].next_state[1] - transitions[0].state[1],
+            color=(1, 204 / 255, 153 / 255),
+            width=0.002,
+            head_width=0.02,
+        )
+        plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color=(247/255,86/255,59/255), s=1)
+        plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color=(247/255,86/255,59/255),label="state point", s=1)
         for neighbor in epsilon_controllable_list:
             circle = plt.Circle(neighbor.centered_state, neighbor.radius, color='cornflowerblue', fill=True, alpha=0.2)
             plt.gca().add_patch(circle)
         # circle2 = plt.Circle((target_state[0], target_state[1]), 0.05, color='cornflowerblue', fill=True, alpha=0.2)
         # plt.add_patch(circle2)
-        plt.plot(target_state[0]+0.05, target_state[1]+0.05, marker='o', markersize=10, color='cornflowerblue', label='epsilon controllable set')
+        # plt.plot(target_state[0]+0.05, target_state[1]+0.05, marker='o', markersize=10, color='cornflowerblue', label='epsilon controllable set')
         plt.scatter(target_state[0], target_state[1], color='yellow', label='target state', marker='*')
         # plt.axis('equal')
-        # plt.xlim([self.obs_space.low[0], self.obs_space.high[0]])
-        # plt.ylim([self.obs_space.low[1], self.obs_space.high[1]])
+        # plt.xlim([-0.3, 0.3])
+        # plt.ylim([-0.3, 0.3])
         # plt.xlim([-2, 2.0])
         # plt.ylim([-4.0, 4.0])
-        plt.xlabel("state-1")
-        plt.ylabel("state-2")
+        plt.xlabel("$y$",fontsize=14,fontname= 'Times New Roman')
+        plt.ylabel("$\dot{y}$",fontsize=14,fontname= 'Times New Roman')
         # plt.title(f"expand_{expand_counter}")
         plt.legend(loc='upper right')
         plt.savefig(os.path.join(FILEPATH, f"figs/{self.fig_title}/epsilon_controllable_set/{expand_counter}.pdf"))
@@ -223,8 +222,8 @@ class PlotUtils():
         plt.scatter(transitions.state[:, 0], transitions.state[:, 1], marker='o', color=(247/255,86/255,59/255), s=1)
         plt.scatter(transitions.next_state[:, 0], transitions.next_state[:, 1], marker='o', color=(247/255,86/255,59/255), label='state point', s=0.8)
         # plt.axis('equal')
-        plt.xlabel("$y$",fontsize=12,fontname= 'Times New Roman')
-        plt.ylabel("$\dot{y}$",fontsize=12,fontname= 'Times New Roman')
+        plt.xlabel("$y$",fontsize=14,fontname= 'Times New Roman')
+        plt.ylabel("$\dot{y}$",fontsize=14,fontname= 'Times New Roman')
         # plt.xlim([-3.0, 3.0])
         # x_lim = plt.xlim([-2.0, 2.0])
         # print("当前 x 轴范围为:", x_lim)

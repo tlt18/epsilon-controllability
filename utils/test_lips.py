@@ -2,7 +2,7 @@ from buffer import Buffer
 from env.massspring import MassSpring, MassSpringwoControl
 from env.simpleocp import SimpleOCP, SimpleOCPwoControl
 from env.pendulum import Pendulum, PendulumwoControl
-from controllabilitytest import ControllabilityTest, Transition
+from controllabilitytestforall import ControllabilityTest, Transition
 from utils.timeit import Timeit
 
 import numpy as np

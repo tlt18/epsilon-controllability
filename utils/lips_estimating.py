@@ -12,7 +12,7 @@ from env.simpleocp import SimpleOCP, SimpleOCPwoControl
 from env.pendulum import Pendulum, PendulumwoControl
 from env.oscillator import Oscillator, OscillatorwoControl
 from env.veh3dof import Veh3DoF, Veh3DoFwoControl
-from controllabilitytest import ControllabilityTest, Transition
+from controllabilitytestforall import ControllabilityTest, Transition
 from utils.timeit import Timeit
 
 FILEPATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     #     'pgf.texsystem': 'xelatex',  # 或者 'pdflatex'，取决于你的 LaTeX 发行版
     # })
 
-    env_name = "MassSpring"
+    env_name = "MassSpringwoControl"
     env = eval(env_name)(seed=1)
     buffer = Buffer(buffer_size=num_sample)
     test = LipsTest(
@@ -260,8 +260,8 @@ if __name__ == "__main__":
     plt.ylim([-0.1, 2 * max_lips + 0.1])
     plt.gca().set_aspect('equal', adjustable='box')
     # plt.title(f"num_sample: {num_sample}")
-    plt.xlabel("$L_\mathscr{x}$",fontsize=12,fontname= 'Times New Roman')
-    plt.ylabel("$L_\mathscr{u}$",fontsize=12,fontname= 'Times New Roman')
+    plt.xlabel("$L_\mathscr{x}$",fontsize=14,fontname= 'Times New Roman')
+    plt.ylabel("$L_\mathscr{u}$",fontsize=14,fontname= 'Times New Roman')
 
     plt.savefig(os.path.join(FILEPATH, "figs", "lipschitz", env_name + str(num_sample) + "lipschitz.png"),
                 bbox_inches='tight', pad_inches=0.2)
