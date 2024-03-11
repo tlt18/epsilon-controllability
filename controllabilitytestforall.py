@@ -155,7 +155,7 @@ class  ControllabilityTestforAll:
         self.next_state_kdtree: KDTree = None
         self.sample_flag = False
     def sample(self):
-        random.seed(2024)
+        self.env.seed(0)
         state = self.env.reset()
         for _ in range(self.num_sample):
             action = self.env.action_space.sample()
@@ -164,6 +164,7 @@ class  ControllabilityTestforAll:
             # print(state, action, reward, next_state)
             state = self.env.reset() if done else next_state
         self.dataset = Transition(*self.buffer.get_data())
+        print("first 5 states: ", self.dataset.state[:5])
         if self.use_kd_tree:
             self.state_kdtree = KDTree(self.dataset.state, leaf_size=40, metric='euclidean')
             self.next_state_kdtree = KDTree(self.dataset.next_state, leaf_size=40, metric='euclidean')
