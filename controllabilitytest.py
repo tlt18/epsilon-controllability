@@ -160,6 +160,7 @@ class  ControllabilityTest:
             self.buffer.add((state, action, reward, next_state, done))
             state = self.env.reset() if done else next_state
         self.dataset = Transition(*self.buffer.get_data())
+        print(f"the first 5 states: {self.dataset.state[:5]}")
         if self.use_kd_tree:
             self.state_kdtree = KDTree(self.dataset.state, leaf_size=40, metric='euclidean')
             self.next_state_kdtree = KDTree(self.dataset.next_state, leaf_size=40, metric='euclidean')
@@ -290,6 +291,14 @@ class  ControllabilityTest:
         with Timeit("calculate epsilon controllable set time"):
             self.get_epsilon_controllable_set(self.target_state, self.epsilon)
 
+        with Timeit("count controllable states"):
+            controllable_num, proportion = self.count_states()
+            file = open(FILEPATH + f"/figs/{self.fig_title}/count.txt", "w")
+            store_str = "epsilon: {}, controllable_num: {}, proportion: {}".format(self.epsilon, controllable_num, proportion)
+            file.write(store_str)
+            print(store_str)
+            file.close()
+
         with Timeit("plot sample time"):
             os.makedirs(FILEPATH + f"/figs/{self.fig_title}", exist_ok=True)
             self.plot_utils.plot_sample(self.dataset)
@@ -297,6 +306,10 @@ class  ControllabilityTest:
         
         self.save_epsilon_controllable_set()
 
+    def count_states(self):
+        controllable_num = np.sum(self.dataset.is_controllable==True)
+        return controllable_num, controllable_num/len(self.dataset)
+    
     def save_epsilon_controllable_set(self):
         epsilon_controllable_set = np.concatenate(
             [
