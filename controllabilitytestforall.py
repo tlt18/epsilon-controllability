@@ -1,4 +1,5 @@
 # controllability test for dynamics systems in datative setting
+import random
 from copy import deepcopy
 from dataclasses import dataclass
 import datetime
@@ -125,6 +126,7 @@ class  ControllabilityTestforAll:
             backward_plot_interval: int = 100,
             plot_expand_flag: bool = True,
             plot_backward_flag: bool = False,
+
         ):
         self.env = env
         self.buffer = buffer
@@ -138,7 +140,7 @@ class  ControllabilityTestforAll:
         self.plot_backward_flag = plot_backward_flag
         self.epsilon_controllable_set: NeighbourSet = None
         self.lipschitz_fx = getattr(self, f"lipschitz_fx_{lips_estimate_mode}")
-        
+
         self.fig_title = f"{env.__class__.__name__}/{target_state}state-{epsilon}epsilon-{num_sample}samples-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.plot_utils: PlotUtils = PlotUtils(
             obs_space = self.env.observation_space, 
@@ -151,13 +153,15 @@ class  ControllabilityTestforAll:
         self.dataset = None
         self.state_kdtree: KDTree = None
         self.next_state_kdtree: KDTree = None
-        
+        self.sample_flag = False
     def sample(self):
+        random.seed(2024)
         state = self.env.reset()
         for _ in range(self.num_sample):
             action = self.env.action_space.sample()
             next_state, reward, done, _ = self.env.step(action)
             self.buffer.add((state, action, reward, next_state, done))
+            # print(state, action, reward, next_state)
             state = self.env.reset() if done else next_state
         self.dataset = Transition(*self.buffer.get_data())
         if self.use_kd_tree:
@@ -295,9 +299,9 @@ class  ControllabilityTestforAll:
 
         with Timeit("count controllable states"):
             controllable_num, proportion = self.count_states()
-            file = open(FILEPATH + f"/figs/{self.env.__class__.__name__}/count.txt", "a")
+            file = open(FILEPATH + f"/figs/{self.env.__class__.__name__}/countall.txt", "a")
             # file.write("controllable_num: "+str(controllable_num)+" proportion: "+str(proportion)+"\n")
-            file.write(str(proportion)+"\n")
+            file.write(f"{self.epsilon} " + str(proportion)+"\n")
             file.close()
         # with Timeit("plot.py sample time"):
         #     # os.makedirs(FILEPATH + f"/figs/{self.fig_title}", exist_ok=True)

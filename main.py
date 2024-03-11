@@ -11,17 +11,19 @@ from env.tunnel_diode import TunnelDiode
 import numpy as np
 import argparse
 import matplotlib.pyplot as plt
-
+from utils.utils_plots import PlotUtils, FILEPATH
+import random
 
 # if __name__ == "__main__":
 #     parser = argparse.ArgumentParser()
 #     parser.add_argument("--num_sample", type=int, default=5000, help="Number of samples")
-#     parser.add_argument("--env", type=str, default="TunnelDiode", help="env class name")
-#     parser.add_argument("--epsilon", type=float, default=0.1, help="Epsilon value")
+#     parser.add_argument("--env", type=str, default="MassSpringwoControl", help="env class name")
+#     parser.add_argument("--epsilon", type=float, default=0.05, help="Epsilon value")
 #     # parser.add_argument("--target_state", type=float, nargs='+', default=[0, 0, 30], help="Target state")
-#     parser.add_argument("--target_state", type=float, nargs='+', default=[0.8844298, 0.210380361], help="Target state")
+#     # state = np.array([0.8844298, 0.210380361])
+#     # state = np.array([0.06263583, 0.75824183])
+#     parser.add_argument("--target_state", type=float, nargs='+', default=[0, 0], help="Target state")
 #     parser.add_argument("--lipschitz_confidence", type=float, default=0.2, help="Lipschitz confidence")
-#     parser.add_argument("--expand_mode", type=str, default="strict", help="Expand mode")
 #     args = parser.parse_args()
 #
 #     env = eval(args.env)(seed = 1)
@@ -32,7 +34,6 @@ import matplotlib.pyplot as plt
 #     print(f"epsilon: {args.epsilon}")
 #     print(f"target_state: {args.target_state}")
 #     print(f"lipschitz_confidence: {args.lipschitz_confidence}")
-#     print(f"expand_mode: {args.expand_mode}")
 #     print(f"num_sample: {args.num_sample}")
 #
 #     test = ControllabilityTest(
@@ -55,8 +56,8 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--num_sample", type=int, default=5000, help="Number of samples")
-    parser.add_argument("--env", type=str, default="TunnelDiode", help="env class name")
+    parser.add_argument("--num_sample", type=int, default=2000, help="Number of samples")
+    parser.add_argument("--env", type=str, default="MassSpring", help="env class name")
     parser.add_argument("--epsilon", type=float, default=0.05, help="Epsilon value")
     # parser.add_argument("--target_state", type=float, nargs='+', default=[0, 0, 30], help="Target state")
     # parser.add_argument("--target_state", type=float, nargs='+', default=[0, 0], help="Target state")
@@ -66,22 +67,52 @@ if __name__ == "__main__":
 
     env = eval(args.env)(seed = 1)
     buffer = Buffer(buffer_size=args.num_sample)
-
+    random.seed(2024)
     # print(f"env: {args.env}")
     # print(f"epsilon: {args.epsilon}")
     # print(f"lipschitz_confidence: {args.lipschitz_confidence}")
     # print(f"expand_mode: {args.expand_mode}")
     # print(f"num_sample: {args.num_sample}")
+    target_states = [[0.8844298, 0.210380361],[0.06263583, 0.75824183], [0.285, 0.61]]
+    # target_states = [[0, 0],[0.25, 0], [-0.25, 0]]
     coordinates = []
-    for x in range(-3, 14):
-        for y in range(-3, 14):
+    for x in range(-10, 10):
+        for y in range(-10, 10):
             coordinates.append([x / 10, y / 10])
     for i in range(len(coordinates)):
+    # for i in target_states:
         target_state = np.array(coordinates[i])
+        # target_state = np.array(i)
         print(f"target_state: {target_state}")
+        # for epsilon in range(20):
+        #     test = ControllabilityTestforAll(
+        #         env=env,
+        #         buffer=buffer,
+        #         target_state=target_state,
+        #         # epsilon=0.04,
+        #         epsilon=(epsilon+1)/100,
+        #         num_sample=args.num_sample,
+        #         lipschitz_confidence=args.lipschitz_confidence,
+        #         use_kd_tree=True,
+        #         # expand_mode=args.expand_mode,
+        #         lips_estimate_mode="sampling",
+        #         expand_plot_interval=1000,
+        #         backward_plot_interval=100000000000000,
+        #         plot_expand_flag=True,
+        #         plot_backward_flag=False,
+        #         )
+        #     if target_state[0] == 0.9 and target_state[1]==0.3:
+        #         file = open(FILEPATH + f"/figs/TunnelDiode/countall.txt", "a")
+        #         # file.write("controllable_num: "+str(controllable_num)+" proportion: "+str(proportion)+"\n")
+        #         file.write(str(0.69) + "\n")
+        #         file.close()
+        #         continue
+        #     else:
+        #         test.run()
         test = ControllabilityTestforAll(
             env=env,
             buffer=buffer,
+
             target_state=target_state,
             epsilon=args.epsilon,
             num_sample=args.num_sample,
@@ -96,12 +127,14 @@ if __name__ == "__main__":
         )
 
         test.run()
+
+
     # coordinates = []
     # values = []
     # for x in range(-3, 14):
     #     for y in range(-3, 14):
     #         coordinates.append([x / 10, y / 10])
-    # with open(f"figs/{env}/count.txt", "r") as file:
+    # with open(f"figs/{env}/countall.txt", "r") as file:
     #     for line in file:
     #         # 将读取的行转换为具体的值，并添加到values列表中
     #         value = float(line.strip())  # 假设文件中每行只包含一个数字，并且去除每行末尾的换行符
