@@ -57,7 +57,7 @@ import random
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_sample", type=int, default=2000, help="Number of samples")
-    parser.add_argument("--env", type=str, default="MassSpring", help="env class name")
+    parser.add_argument("--env", type=str, default="TunnelDiode", help="env class name")
     parser.add_argument("--epsilon", type=float, default=0.05, help="Epsilon value")
     # parser.add_argument("--target_state", type=float, nargs='+', default=[0, 0, 30], help="Target state")
     # parser.add_argument("--target_state", type=float, nargs='+', default=[0, 0], help="Target state")
@@ -79,54 +79,54 @@ if __name__ == "__main__":
     for x in range(-10, 10):
         for y in range(-10, 10):
             coordinates.append([x / 10, y / 10])
-    for i in range(len(coordinates)):
-    # for i in target_states:
-        target_state = np.array(coordinates[i])
-        # target_state = np.array(i)
+    # for i in range(len(coordinates)):
+    for i in target_states:
+        # target_state = np.array(coordinates[i])
+        target_state = np.array(i)
         print(f"target_state: {target_state}")
-        # for epsilon in range(20):
-        #     test = ControllabilityTestforAll(
-        #         env=env,
-        #         buffer=buffer,
-        #         target_state=target_state,
-        #         # epsilon=0.04,
-        #         epsilon=(epsilon+1)/100,
-        #         num_sample=args.num_sample,
-        #         lipschitz_confidence=args.lipschitz_confidence,
-        #         use_kd_tree=True,
-        #         # expand_mode=args.expand_mode,
-        #         lips_estimate_mode="sampling",
-        #         expand_plot_interval=1000,
-        #         backward_plot_interval=100000000000000,
-        #         plot_expand_flag=True,
-        #         plot_backward_flag=False,
-        #         )
-        #     if target_state[0] == 0.9 and target_state[1]==0.3:
-        #         file = open(FILEPATH + f"/figs/TunnelDiode/countall.txt", "a")
-        #         # file.write("controllable_num: "+str(controllable_num)+" proportion: "+str(proportion)+"\n")
-        #         file.write(str(0.69) + "\n")
-        #         file.close()
-        #         continue
-        #     else:
-        #         test.run()
-        test = ControllabilityTestforAll(
-            env=env,
-            buffer=buffer,
-
-            target_state=target_state,
-            epsilon=args.epsilon,
-            num_sample=args.num_sample,
-            lipschitz_confidence=args.lipschitz_confidence,
-            use_kd_tree=True,
-            # expand_mode=args.expand_mode,
-            lips_estimate_mode="sampling",
-            expand_plot_interval=1000,
-            backward_plot_interval=100000000000000,
-            plot_expand_flag=True,
-            plot_backward_flag=False,
-        )
-
-        test.run()
+        for epsilon in range(20):
+            test = ControllabilityTestforAll(
+                env=env,
+                buffer=buffer,
+                target_state=target_state,
+                # epsilon=0.04,
+                epsilon=(epsilon+1)/100,
+                num_sample=args.num_sample,
+                lipschitz_confidence=args.lipschitz_confidence,
+                use_kd_tree=True,
+                # expand_mode=args.expand_mode,
+                lips_estimate_mode="sampling",
+                expand_plot_interval=1000,
+                backward_plot_interval=100000000000000,
+                plot_expand_flag=True,
+                plot_backward_flag=False,
+                )
+            if target_state[0] == 0.9 and target_state[1]==0.3:
+                file = open(FILEPATH + f"/figs/TunnelDiode/count.txt", "a")
+                # file.write("controllable_num: "+str(controllable_num)+" proportion: "+str(proportion)+"\n")
+                file.write(str(0.69) + "\n")
+                file.close()
+                continue
+            else:
+                test.run()
+        # test = ControllabilityTestforAll(
+        #     env=env,
+        #     buffer=buffer,
+        #
+        #     target_state=target_state,
+        #     epsilon=args.epsilon,
+        #     num_sample=args.num_sample,
+        #     lipschitz_confidence=args.lipschitz_confidence,
+        #     use_kd_tree=True,
+        #     # expand_mode=args.expand_mode,
+        #     lips_estimate_mode="sampling",
+        #     expand_plot_interval=1000,
+        #     backward_plot_interval=100000000000000,
+        #     plot_expand_flag=True,
+        #     plot_backward_flag=False,
+        # )
+        #
+        # test.run()
 
 
     # coordinates = []

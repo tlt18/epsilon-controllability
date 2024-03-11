@@ -299,7 +299,7 @@ class  ControllabilityTestforAll:
 
         with Timeit("count controllable states"):
             controllable_num, proportion = self.count_states()
-            file = open(FILEPATH + f"/figs/{self.env.__class__.__name__}/countall.txt", "a")
+            file = open(FILEPATH + f"/figs/{self.env.__class__.__name__}/count.txt", "a")
             # file.write("controllable_num: "+str(controllable_num)+" proportion: "+str(proportion)+"\n")
             file.write(f"{self.epsilon} " + str(proportion)+"\n")
             file.close()
