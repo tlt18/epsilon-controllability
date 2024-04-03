@@ -358,9 +358,9 @@ class  ControllabilityTest:
                 else:
                     lipschitz_confidence *= 2
 
-            next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, data.next_state))
-            states_negdist = - self.distance(data_in_neighbourhood.state, data.state)
-            actions_negdist = - self.distance(data_in_neighbourhood.action, data.action)
+            next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, single_transition.next_state))
+            states_negdist = - self.distance(data_in_neighbourhood.state, single_transition.state)
+            actions_negdist = - self.distance(data_in_neighbourhood.action, single_transition.action)
             concat_negdist = np.stack([states_negdist, actions_negdist], axis = 0)
 
             # solve QP: min Lx**2 + Lu**2, s.t. next_state_dist <= Lx * state_dist + Lu*action_dist
@@ -402,9 +402,9 @@ class  ControllabilityTest:
                 else:
                     lipschitz_confidence *= 2
 
-            next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, data.next_state))
-            states_negdist = - self.distance(data_in_neighbourhood.state, data.state)
-            actions_negdist = - self.distance(data_in_neighbourhood.action, data.action)
+            next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, single_transition.next_state))
+            states_negdist = - self.distance(data_in_neighbourhood.state, single_transition.state)
+            actions_negdist = - self.distance(data_in_neighbourhood.action, single_transition.action)
             concat_negdist = np.stack([states_negdist, actions_negdist], axis = 0)
 
             # solve LP: min Lx + Lu, s.t. next_state_dist <= Lx * state_dist + Lu*action_dist
@@ -450,10 +450,10 @@ class  ControllabilityTest:
                     lipschitz_confidence *= 2
                     
             lipschitz_x[idx] = np.max(
-                self.distance(single_transition.next_state, data_in_neighbourhood.next_state) / \
+                self.distance(data_in_neighbourhood.next_state, single_transition.next_state) / \
                 np.max([
-                    self.distance(single_transition.state, data_in_neighbourhood.state), 
-                    self.distance(single_transition.action, data_in_neighbourhood.action)
+                    self.distance(data_in_neighbourhood.state, single_transition.state), 
+                    self.distance(data_in_neighbourhood.action, single_transition.action)
                 ], axis=0)
             )
 
