@@ -1,0 +1,7 @@
+numpy
+matplotlib
+cvxopt
+natsort
+imageio
+gym
+scikit-learn
