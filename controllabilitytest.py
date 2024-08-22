@@ -125,6 +125,7 @@ class  ControllabilityTest:
             backward_plot_interval: int = 100,
             plot_expand_flag: bool = True,
             plot_backward_flag: bool = False,
+            search_mode: str = "max_radius"
         ):
         self.env = env
         self.buffer = buffer
@@ -138,6 +139,7 @@ class  ControllabilityTest:
         self.plot_backward_flag = plot_backward_flag
         self.epsilon_controllable_set: NeighbourSet = None
         self.lipschitz_fx = getattr(self, f"lipschitz_fx_{lips_estimate_mode}")
+        self.search_mode = search_mode
         
         self.fig_title = f"{env.__class__.__name__}/{target_state}state-{epsilon}epsilon-{num_sample}samples-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.plot_utils: PlotUtils = PlotUtils(
@@ -227,8 +229,14 @@ class  ControllabilityTest:
             new_neighbor_num = 0
             while idx_set < len(self.epsilon_controllable_set):
                 # find the neighbor with the largest radius
-                idx_max = np.argmax(self.epsilon_controllable_set.radius[idx_set:])
-                self.epsilon_controllable_set.replace(idx_set, idx_set + idx_max)
+                if self.search_mode == "max_radius":
+                    idx_max = np.argmax(self.epsilon_controllable_set.radius[idx_set:])
+                    self.epsilon_controllable_set.replace(idx_set, idx_set + idx_max)
+                elif self.search_mode == "DFS":
+                    idx_max = len(self.epsilon_controllable_set) - idx_set - 1
+                    self.epsilon_controllable_set.replace(idx_set, idx_set + idx_max)
+                else:
+                    assert self.search_mode == "BFS", "The search mode is not correct!"
 
                 neighbor = self.epsilon_controllable_set[idx_set]
                 if not neighbor.visited:
