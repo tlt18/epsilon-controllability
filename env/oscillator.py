@@ -59,13 +59,35 @@ class Oscillator(BaseEnv):
         return next_state
 
 
-class OscillatorControl(Oscillator):
+class OscillatorwoControl(Oscillator):
     def __init__(self, seed: int = None, max_step: int = 200):
         super().__init__(seed, max_step)
         self.action_space = spaces.Box(low=-0.5, high=0.5, shape=(1,), dtype=np.float32)
 
     def get_next_state(self, action):
-        return super().get_next_state(np.zeros_like(action))
+        '''
+        Dynamics:
+            \dot{\theta} = \omega
+            \dot{\omega} = -\theta -\omega(1-\theta**2)/2+u
+        Eluer forward:
+            \theta_{t+1} = \theta_t + \dot{\theta}_t * dt
+            \omega_{t+1} = v_t + \dot{\omega}_t * dt
+        '''
+        u = action
+        return np.array([
+            self.state[0] + self.state[1] * self.dt,
+            self.state[1] + (-self.state[0] - self.state[1] * (1 - self.state[0] ** 2) / 2) * self.dt
+        ]
+        )
 
     def model_forward(self, state, action):
-        return super().model_forward(state, np.zeros_like(action))
+        unbatched = len(state.shape) == 1
+        if unbatched:
+            state = state[None, :]
+            action = action[None, :]
+        next_state = np.stack([
+            state[:, 0] + state[:, 1] * self.dt,
+            state[:, 1] + (-state[:, 0] - state[:, 1] * (1 - state[:, 0] ** 2) / 2 ) * self.dt], axis=1)
+        if unbatched:
+            next_state = next_state[0]
+        return next_state

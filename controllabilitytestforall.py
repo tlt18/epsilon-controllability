@@ -1,4 +1,5 @@
 # controllability test for dynamics systems in datative setting
+import random
 from copy import deepcopy
 from dataclasses import dataclass
 import datetime
@@ -110,7 +111,7 @@ class Transition:
         )
 
 
-class  ControllabilityTest:
+class  ControllabilityTestforAll:
     def __init__(
             self, 
             env: gym.Env , 
@@ -125,7 +126,7 @@ class  ControllabilityTest:
             backward_plot_interval: int = 100,
             plot_expand_flag: bool = True,
             plot_backward_flag: bool = False,
-            search_mode: str = "max_radius"
+
         ):
         self.env = env
         self.buffer = buffer
@@ -139,8 +140,7 @@ class  ControllabilityTest:
         self.plot_backward_flag = plot_backward_flag
         self.epsilon_controllable_set: NeighbourSet = None
         self.lipschitz_fx = getattr(self, f"lipschitz_fx_{lips_estimate_mode}")
-        self.search_mode = search_mode
-        
+
         self.fig_title = f"{env.__class__.__name__}/{target_state}state-{epsilon}epsilon-{num_sample}samples-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.plot_utils: PlotUtils = PlotUtils(
             obs_space = self.env.observation_space, 
@@ -153,16 +153,18 @@ class  ControllabilityTest:
         self.dataset = None
         self.state_kdtree: KDTree = None
         self.next_state_kdtree: KDTree = None
-        
+        self.sample_flag = False
     def sample(self):
+        self.env.seed(0)
         state = self.env.reset()
         for _ in range(self.num_sample):
             action = self.env.action_space.sample()
             next_state, reward, done, _ = self.env.step(action)
             self.buffer.add((state, action, reward, next_state, done))
+            # print(state, action, reward, next_state)
             state = self.env.reset() if done else next_state
         self.dataset = Transition(*self.buffer.get_data())
-        print(f"the first 5 states: {self.dataset.state[:5]}")
+        print("first 5 states: ", self.dataset.state[:5])
         if self.use_kd_tree:
             self.state_kdtree = KDTree(self.dataset.state, leaf_size=40, metric='euclidean')
             self.next_state_kdtree = KDTree(self.dataset.next_state, leaf_size=40, metric='euclidean')
@@ -229,14 +231,8 @@ class  ControllabilityTest:
             new_neighbor_num = 0
             while idx_set < len(self.epsilon_controllable_set):
                 # find the neighbor with the largest radius
-                if self.search_mode == "max_radius":
-                    idx_max = np.argmax(self.epsilon_controllable_set.radius[idx_set:])
-                    self.epsilon_controllable_set.replace(idx_set, idx_set + idx_max)
-                elif self.search_mode == "DFS":
-                    idx_max = len(self.epsilon_controllable_set) - idx_set - 1
-                    self.epsilon_controllable_set.replace(idx_set, idx_set + idx_max)
-                else:
-                    assert self.search_mode == "BFS", "The search mode is not correct!"
+                idx_max = np.argmax(self.epsilon_controllable_set.radius[idx_set:])
+                self.epsilon_controllable_set.replace(idx_set, idx_set + idx_max)
 
                 neighbor = self.epsilon_controllable_set[idx_set]
                 if not neighbor.visited:
@@ -268,27 +264,28 @@ class  ControllabilityTest:
                                 ax=ax
                             )
                     if self.plot_expand_flag and expand_counter%self.expand_plot_interval == 0:
-                        # pass
-                        self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter, self.dataset, self.target_state)
+                        pass
+                        # self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter, self.dataset, self.target_state)
                     expand_counter += 1
                     if idx_set % 100 == 0 or idx_set == len(self.epsilon_controllable_set) - 1:
-                        print("index in set: {}, new_neighbor_num: {}, total_controllable_num: {}, current radius: {}"
-                            .format(idx_set, new_neighbor_num, len(self.epsilon_controllable_set), neighbor.radius)
-                        )
+                        # print("index in set: {}, new_neighbor_num: {}, total_controllable_num: {}, current radius: {}"
+                        #     .format(idx_set, new_neighbor_num, len(self.epsilon_controllable_set), neighbor.radius)
+                        # )
                         new_neighbor_num = 0
                 idx_set += 1
         if self.plot_backward_flag and fig is not None and ax is not None:
             self.plot_utils.save_figs(fig, ax)
         if self.plot_expand_flag:
-            # pass
-            self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter, self.dataset, self.target_state)
+            pass
+            # self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter, self.dataset, self.target_state)
 
     def estimate_lipschitz_constant(self):
         self.dataset.lipschitz_x = self.lipschitz_fx(self.dataset)
 
     def run(self):
-        if self.plot_expand_flag:
-            os.makedirs(FILEPATH + f"/figs/{self.fig_title}/epsilon_controllable_set", exist_ok=True)
+        # if self.plot_expand_flag:
+        #
+        #     os.makedirs(FILEPATH + f"/figs/{self.fig_title}/epsilon_controllable_set", exist_ok=True)
         if self.plot_backward_flag:
             os.makedirs(FILEPATH + f"/figs/{self.fig_title}/expand_backward", exist_ok=True)
 
@@ -303,23 +300,20 @@ class  ControllabilityTest:
 
         with Timeit("count controllable states"):
             controllable_num, proportion = self.count_states()
-            file = open(FILEPATH + f"/figs/{self.fig_title}/count.txt", "w")
-            store_str = "epsilon: {}, controllable_num: {}, proportion: {}".format(self.epsilon, controllable_num, proportion)
-            file.write(store_str)
-            print(store_str)
+            file = open(FILEPATH + f"/figs/{self.env.__class__.__name__}/count.txt", "a")
+            # file.write("controllable_num: "+str(controllable_num)+" proportion: "+str(proportion)+"\n")
+            file.write(f"{self.epsilon} " + str(proportion)+"\n")
             file.close()
-
-        with Timeit("plot sample time"):
-            os.makedirs(FILEPATH + f"/figs/{self.fig_title}", exist_ok=True)
-            self.plot_utils.plot_sample(self.dataset)
-            self.plot_utils.plot_controllable_data(self.dataset)
+        # with Timeit("plot.py sample time"):
+        #     # os.makedirs(FILEPATH + f"/figs/{self.fig_title}", exist_ok=True)
+        #     # self.plot_utils.plot_sample(self.dataset)
+        #     # self.plot_utils.plot_controllable_data(self.dataset)
         
-        self.save_epsilon_controllable_set()
+        # self.save_epsilon_controllable_set()
 
     def count_states(self):
         controllable_num = np.sum(self.dataset.is_controllable==True)
         return controllable_num, controllable_num/len(self.dataset)
-    
     def save_epsilon_controllable_set(self):
         epsilon_controllable_set = np.concatenate(
             [
@@ -368,9 +362,9 @@ class  ControllabilityTest:
                 else:
                     lipschitz_confidence *= 2
 
-            next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, single_transition.next_state))
-            states_negdist = - self.distance(data_in_neighbourhood.state, single_transition.state)
-            actions_negdist = - self.distance(data_in_neighbourhood.action, single_transition.action)
+            next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, data.next_state))
+            states_negdist = - self.distance(data_in_neighbourhood.state, data.state)
+            actions_negdist = - self.distance(data_in_neighbourhood.action, data.action)
             concat_negdist = np.stack([states_negdist, actions_negdist], axis = 0)
 
             # solve QP: min Lx**2 + Lu**2, s.t. next_state_dist <= Lx * state_dist + Lu*action_dist
@@ -412,9 +406,9 @@ class  ControllabilityTest:
                 else:
                     lipschitz_confidence *= 2
 
-            next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, single_transition.next_state))
-            states_negdist = - self.distance(data_in_neighbourhood.state, single_transition.state)
-            actions_negdist = - self.distance(data_in_neighbourhood.action, single_transition.action)
+            next_state_negdist = (- self.distance(data_in_neighbourhood.next_state, data.next_state))
+            states_negdist = - self.distance(data_in_neighbourhood.state, data.state)
+            actions_negdist = - self.distance(data_in_neighbourhood.action, data.action)
             concat_negdist = np.stack([states_negdist, actions_negdist], axis = 0)
 
             # solve LP: min Lx + Lu, s.t. next_state_dist <= Lx * state_dist + Lu*action_dist
@@ -460,10 +454,10 @@ class  ControllabilityTest:
                     lipschitz_confidence *= 2
                     
             lipschitz_x[idx] = np.max(
-                self.distance(data_in_neighbourhood.next_state, single_transition.next_state) / \
+                self.distance(single_transition.next_state, data_in_neighbourhood.next_state) / \
                 np.max([
-                    self.distance(data_in_neighbourhood.state, single_transition.state), 
-                    self.distance(data_in_neighbourhood.action, single_transition.action)
+                    self.distance(single_transition.state, data_in_neighbourhood.state), 
+                    self.distance(single_transition.action, data_in_neighbourhood.action)
                 ], axis=0)
             )
 
