@@ -303,9 +303,13 @@ class  ControllabilityTest:
 
         with Timeit("count controllable states"):
             controllable_num, proportion = self.count_states()
-            file = open(FILEPATH + f"/figs/{self.fig_title}/count.txt", "w")
-            store_str = "epsilon: {}, controllable_num: {}, proportion: {}".format(self.epsilon, controllable_num, proportion)
-            file.write(store_str)
+            directory = FILEPATH + f"/figs/{self.fig_title}"
+            file_name = directory + "/count.txt"
+            
+            os.makedirs(directory, exist_ok=True)
+            with open(file_name, "w") as file:
+                store_str = "epsilon: {}, controllable_num: {}, proportion: {}".format(self.epsilon, controllable_num, proportion)
+                file.write(store_str)
             print(store_str)
             file.close()
 
