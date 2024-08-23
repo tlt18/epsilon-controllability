@@ -108,6 +108,14 @@ class Transition:
             lipschitz_x = np.array([transition.lipschitz_x for transition in transitionList]) if transitionList[0].lipschitz_x is not None else None,
             is_controllable = np.array([transition.is_controllable for transition in transitionList]),
         )
+        
+    @property
+    def controllable_ratio(self):
+        return np.sum(self.is_controllable) / len(self.state)
+    
+    @property
+    def controllable_num(self):
+        return np.sum(self.is_controllable)
 
 
 class  ControllabilityTest:
@@ -142,8 +150,9 @@ class  ControllabilityTest:
         self.lipschitz_fx = getattr(self, f"lipschitz_fx_{lips_estimate_mode}")
         self.search_mode = search_mode
         self.expand_mode = expand_mode
+        self.controllable_ratio_log = {}
         
-        self.fig_title = f"{env.__class__.__name__}/{target_state}state-{epsilon}epsilon-{num_sample}samples-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.fig_title = f"{env.__class__.__name__}/{target_state}state-{epsilon}epsilon-{num_sample}samples-" + search_mode + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.plot_utils: PlotUtils = PlotUtils(
             obs_space = self.env.observation_space, 
             action_space = self.env.action_space,
@@ -230,59 +239,63 @@ class  ControllabilityTest:
 
         self.epsilon_controllable_set = NeighbourSet.batch([NeighbourSet(state, epsilon)])
         # until all the neighbor sets are visited
-        while not all([neighbor.visited for neighbor in self.epsilon_controllable_set]):
-            idx_set = 0
-            new_neighbor_num = 0
-            while idx_set < len(self.epsilon_controllable_set):
-                # find the neighbor with the largest radius
-                if self.search_mode == "max_radius":
-                    idx_max = np.argmax(self.epsilon_controllable_set.radius[idx_set:])
-                    self.epsilon_controllable_set.replace(idx_set, idx_set + idx_max)
-                elif self.search_mode == "DFS":
-                    idx_max = len(self.epsilon_controllable_set) - idx_set - 1
-                    self.epsilon_controllable_set.replace(idx_set, idx_set + idx_max)
-                else:
-                    assert self.search_mode == "BFS", "The search mode is not correct!"
+        idx_set = 0
+        new_neighbor_num = 0
+        while idx_set < len(self.epsilon_controllable_set):
+            # find the neighbor with the largest radius
+            if self.search_mode == "max_radius":
+                idx_max = np.argmax(self.epsilon_controllable_set.radius[idx_set:])
+                self.epsilon_controllable_set.replace(idx_set, idx_set + idx_max)
+            elif self.search_mode == "DFS":
+                idx_max = len(self.epsilon_controllable_set) - idx_set - 1
+                self.epsilon_controllable_set.replace(idx_set, idx_set + idx_max)
+            else:
+                assert self.search_mode == "BFS", "The search mode is not correct!"
 
-                neighbor = self.epsilon_controllable_set[idx_set]
-                if not neighbor.visited:
-                    # expand_neighbor_set, last_neighbor_set = self.backward_expand(neighbor, center_only=(idx_set!=0))
-                    expand_neighbor_set, last_neighbor_set = self.backward_expand(neighbor)
-                    self.epsilon_controllable_set[idx_set] = neighbor # set visited = True
-                    for idx_expland, expand_neighbor in enumerate(expand_neighbor_set):
-                        relation, idx_inlist = self.check_expand_neighbor_relation(expand_neighbor)
-                        if relation == None:
-                            self.epsilon_controllable_set.append(expand_neighbor)
-                            new_neighbor_num += 1
-                        elif relation == "set_in_expand":
-                            # If you use fliter, only the elements after the current point are deleted.
-                            # Pro: only one iteration.
-                            # Con: repeated points stay in the set.
-                            idx_dellist = list(filter(lambda x: x > idx_set, idx_inlist))
-                            del self.epsilon_controllable_set[idx_dellist]
-                            self.epsilon_controllable_set.append(expand_neighbor)
-                            new_neighbor_num += 1
-                        else:
-                            assert relation == "expand_in_set" or "same_state", "relation is not correct!"
-                        if relation != "expand_in_set" and relation != "same_state" and self.plot_backward_flag:
-                            fig, ax = self.plot_utils.plot_backward(
-                                state = expand_neighbor.centered_state, 
-                                r = expand_neighbor.radius, 
-                                next_state = last_neighbor_set[idx_expland].centered_state, 
-                                next_r = last_neighbor_set[idx_expland].radius,
-                                fig=fig,
-                                ax=ax
-                            )
-                    if self.plot_expand_flag and expand_counter%self.expand_plot_interval == 0:
-                        # pass
-                        self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter, self.dataset, self.target_state)
-                    expand_counter += 1
-                    if idx_set % 100 == 0 or idx_set == len(self.epsilon_controllable_set) - 1:
-                        print("index in set: {}, new_neighbor_num: {}, total_controllable_num: {}, current radius: {}"
-                            .format(idx_set, new_neighbor_num, len(self.epsilon_controllable_set), neighbor.radius)
-                        )
-                        new_neighbor_num = 0
-                idx_set += 1
+            neighbor = self.epsilon_controllable_set[idx_set]
+            assert not neighbor.visited, "The neighbor set has been visited!"
+            # expand_neighbor_set, last_neighbor_set = self.backward_expand(neighbor, center_only=(idx_set!=0))
+            expand_neighbor_set, last_neighbor_set = self.backward_expand(neighbor)
+            self.epsilon_controllable_set[idx_set] = neighbor # set visited = True
+            for idx_expland, expand_neighbor in enumerate(expand_neighbor_set):
+                relation, idx_inlist = self.check_expand_neighbor_relation(expand_neighbor)
+                if relation == None:
+                    self.epsilon_controllable_set.append(expand_neighbor)
+                    new_neighbor_num += 1
+                elif relation == "set_in_expand":
+                    # If you use fliter, only the elements after the current point are deleted.
+                    # Pro: only one iteration.
+                    # Con: repeated points stay in the set.
+                    idx_dellist = list(filter(lambda x: x > idx_set, idx_inlist))
+                    del self.epsilon_controllable_set[idx_dellist]
+                    self.epsilon_controllable_set.append(expand_neighbor)
+                    new_neighbor_num += 1
+                else:
+                    assert relation == "expand_in_set" or "same_state", "relation is not correct!"
+                if relation != "expand_in_set" and relation != "same_state" and self.plot_backward_flag:
+                    fig, ax = self.plot_utils.plot_backward(
+                        state = expand_neighbor.centered_state, 
+                        r = expand_neighbor.radius, 
+                        next_state = last_neighbor_set[idx_expland].centered_state, 
+                        next_r = last_neighbor_set[idx_expland].radius,
+                        fig=fig,
+                        ax=ax
+                    )
+            if self.plot_expand_flag and expand_counter%self.expand_plot_interval == 0:
+                # pass
+                self.plot_utils.plot_epsilon_controllable_set(self.epsilon_controllable_set, expand_counter, self.dataset, self.target_state)
+            expand_counter += 1
+            
+            if idx_set % 100 == 0 or idx_set == len(self.epsilon_controllable_set) - 1:
+                self.controllable_ratio_log[idx_set] = self.dataset.controllable_ratio
+                print("index in set: {}, new_neighbor_num: {}, total_controllable_num: {}, current radius: {}, controllable ratio: {}"
+                    .format(idx_set, new_neighbor_num, len(self.epsilon_controllable_set), neighbor.radius, self.dataset.controllable_ratio)
+                )
+                new_neighbor_num = 0
+                if self.controllable_ratio_log[idx_set] == 1:
+                    break
+            idx_set += 1
+                                            
         if self.plot_backward_flag and fig is not None and ax is not None:
             self.plot_utils.save_figs(fig, ax)
         if self.plot_expand_flag:
@@ -308,17 +321,15 @@ class  ControllabilityTest:
             self.get_epsilon_controllable_set(self.target_state, self.epsilon)
 
         with Timeit("count controllable states"):
-            controllable_num, proportion = self.count_states()
             directory = FILEPATH + f"/figs/{self.fig_title}"
             file_name = directory + "/count.txt"
             
             os.makedirs(directory, exist_ok=True)
             with open(file_name, "w") as file:
-                store_str = "epsilon: {}, controllable_num: {}, proportion: {}".format(self.epsilon, controllable_num, proportion)
-                file.write(store_str)
-            print(store_str)
-            file.close()
-
+                for step, controllable_ratio in self.controllable_ratio_log.items():
+                    store_str = f"{step},{controllable_ratio}\n"
+                    file.write(store_str)
+            
         with Timeit("plot sample time"):
             os.makedirs(FILEPATH + f"/figs/{self.fig_title}", exist_ok=True)
             self.plot_utils.plot_sample(self.dataset)
@@ -327,10 +338,6 @@ class  ControllabilityTest:
         self.save_epsilon_controllable_set()
         self.save_dataset()
 
-    def count_states(self):
-        controllable_num = np.sum(self.dataset.is_controllable==True)
-        return controllable_num, controllable_num/len(self.dataset)
-    
     def save_epsilon_controllable_set(self):
         epsilon_controllable_set = np.concatenate(
             [
