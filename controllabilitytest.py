@@ -325,6 +325,7 @@ class  ControllabilityTest:
             self.plot_utils.plot_controllable_data(self.dataset)
         
         self.save_epsilon_controllable_set()
+        self.save_dataset()
 
     def count_states(self):
         controllable_num = np.sum(self.dataset.is_controllable==True)
@@ -341,6 +342,23 @@ class  ControllabilityTest:
         )
         header = ', '.join(["state"+str(i) for i in range(self.env.observation_space.shape[0])] + ["radius", "visited", "controllable steps"])
         np.savetxt(FILEPATH + f"/figs/{self.fig_title}/epsilon_controllable_set.csv", epsilon_controllable_set, delimiter=",", header=header, comments="")
+        
+    def save_dataset(self):
+        dataset = np.concatenate(
+            [
+                self.dataset.state,
+                self.dataset.action,
+                self.dataset.next_state,
+                self.dataset.lipschitz_x.reshape(-1, 1),
+                self.dataset.is_controllable.reshape(-1, 1),
+            ], axis=1
+        )
+        header = ', '.join(["state"+str(i) for i in range(self.env.observation_space.shape[0])] + \
+            ["action"+str(i) for i in range(self.env.action_space.shape[0])] + \
+            ["next state"+str(i) for i in range(self.env.observation_space.shape[0])] + \
+            ["lipschitz constant", "is controllable"]
+        )
+        np.savetxt(FILEPATH + f"/figs/{self.fig_title}/dataset.csv", dataset, delimiter=",", header=header, comments="")
 
     def check_expand_neighbor_relation(self, expand_neighbor: NeighbourSet) -> Tuple[Optional[str], Optional[np.ndarray]]:
         dist = self.distance(expand_neighbor.centered_state, self.epsilon_controllable_set.centered_state)
