@@ -3,7 +3,7 @@ from env.massspring import MassSpring, MassSpringwoControl
 from env.simpleocp import SimpleOCP, SimpleOCPwoControl
 from env.pendulum import Pendulum, PendulumwoControl
 from controllabilitytestforall import ControllabilityTest, Transition
-from utils.timeit import Timeit
+from utils.custom_timeit import Timeit
 
 import numpy as np
 

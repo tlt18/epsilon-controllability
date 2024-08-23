@@ -12,7 +12,7 @@ from sklearn.neighbors import KDTree
 
 from buffer import Buffer
 from utils.utils_plots import PlotUtils, FILEPATH
-from utils.timeit import timeit, Timeit
+from utils.custom_timeit import timeit, Timeit
 
 
 cvxopt.solvers.options['show_progress'] = False

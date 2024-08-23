@@ -13,7 +13,7 @@ from env.pendulum import Pendulum, PendulumwoControl
 from env.oscillator import Oscillator, OscillatorwoControl
 from env.veh3dof import Veh3DoF, Veh3DoFwoControl
 from controllabilitytestforall import ControllabilityTest, Transition
-from utils.timeit import Timeit
+from utils.custom_timeit import Timeit
 
 FILEPATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
