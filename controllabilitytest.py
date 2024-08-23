@@ -125,7 +125,8 @@ class  ControllabilityTest:
             backward_plot_interval: int = 100,
             plot_expand_flag: bool = True,
             plot_backward_flag: bool = False,
-            search_mode: str = "max_radius"
+            search_mode: str = "max_radius",
+            expand_mode: str = "MECS",
         ):
         self.env = env
         self.buffer = buffer
@@ -140,6 +141,7 @@ class  ControllabilityTest:
         self.epsilon_controllable_set: NeighbourSet = None
         self.lipschitz_fx = getattr(self, f"lipschitz_fx_{lips_estimate_mode}")
         self.search_mode = search_mode
+        self.expand_mode = expand_mode
         
         self.fig_title = f"{env.__class__.__name__}/{target_state}state-{epsilon}epsilon-{num_sample}samples-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.plot_utils: PlotUtils = PlotUtils(
@@ -193,15 +195,19 @@ class  ControllabilityTest:
         if len(data_in_neighbourhood) == 0:
             return [], []
         else:
-            r_state = np.minimum(
-                    self.lipschitz_confidence, 
-                    (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) /\
-                    data_in_neighbourhood.lipschitz_x
-            )
-            r_next_state = neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)
-            # For loose mode:
-            # r_state = self.epsilon * np.ones(len(data_in_neighbourhood))
-            # r_next_state = self.epsilon * np.ones(len(data_in_neighbourhood))
+            if self.expand_mode == "MECS":
+                r_state = np.minimum(
+                        self.lipschitz_confidence, 
+                        (neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)) /\
+                        data_in_neighbourhood.lipschitz_x
+                )
+                r_next_state = neighbor.radius - self.distance(data_in_neighbourhood.next_state, neighbor.centered_state)
+            elif self.expand_mode == "FERF":
+                r_state = self.epsilon * np.ones(len(data_in_neighbourhood))
+                r_next_state = self.epsilon * np.ones(len(data_in_neighbourhood))
+            else:
+                assert self.expand_mode == "MECS" or "FERF", "The expand mode is not correct!"
+                
             return NeighbourSet(
                 centered_state = data_in_neighbourhood.state,
                 radius = r_state,
