@@ -8,7 +8,7 @@ def plotDOC(datadirs, labels, env, max_step):
     
     # Define line styles and markers
     line_styles = ['-', '--', '-.', ':']
-    markers = ['o', 's', '^', 'd']
+    colors = ['red', 'cornflowerblue', 'orange', 'green', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan']
     
     for i, (datadir, label) in enumerate(zip(datadirs, labels)):
         step = []
@@ -23,24 +23,50 @@ def plotDOC(datadirs, labels, env, max_step):
         doc = np.array(doc)[index]
         
         # Use different line styles and markers
-        plt.plot(step, doc, label=label, linestyle=line_styles[i % len(line_styles)], marker=markers[i % len(markers)])
+        plt.plot(step, doc, label=label, linestyle=line_styles[i % len(line_styles)], linewidth=2, color=colors[i % len(colors)])
         
-        plt.xlabel("Steps")
-        plt.ylabel("DOC")
-        
-    plt.legend()
+    plt.xlabel("Steps",fontsize=14, fontname='Times New Roman')
+    plt.ylabel("DOC",fontsize=14, fontname='Times New Roman')
+    plt.legend(loc='lower right', fontsize=14)
     plt.savefig(f"./epsilon-controllability/figs/{env}/{env}_doc.pdf", format='pdf')
     
 if __name__ == "__main__":
-    env = "MassSpring"
-    dir_name = [
-        "[0. 0.]state-0.05epsilon-5000samples-max_radius20240823-171803",
-        "[0. 0.]state-0.05epsilon-5000samples-BFS20240823-171819",
-        "[0. 0.]state-0.05epsilon-5000samples-DFS20240823-171855",
-    ]
-    max_step = 15000
+    config = {
+        "MassSpring": {
+            "dir_name": [
+                "[0. 0.]state-0.05epsilon-5000samples-max_radius20240823-171803",
+                "[0. 0.]state-0.05epsilon-5000samples-DFS20240823-171855",
+                "[0. 0.]state-0.05epsilon-5000samples-BFS20240823-171819",
+            ],
+            "max_step": 15000,
+        },
+        "Oscillator": {
+            "dir_name": [
+                "[0. 0.]state-0.05epsilon-5000samples-max_radius20240823-172014",
+                "[0. 0.]state-0.05epsilon-5000samples-DFS20240823-172426",
+                "[0. 0.]state-0.05epsilon-5000samples-BFS20240823-172038",
+            ],
+            "max_step": 30000,
+        },
+        "TunnelDiode": {
+            "dir_name": [
+                "[0.8844298  0.21038036]state-0.1epsilon-5000samples-max_radius20240823-203709",
+                "[0.8844298  0.21038036]state-0.1epsilon-5000samples-DFS20240823-213034",
+                "[0.8844298  0.21038036]state-0.1epsilon-5000samples-BFS20240823-203946",
+            ],
+            "max_step": 30000,
+            # "dir_name": [
+            #     "[0.06263583 0.75824183]state-0.1epsilon-5000samples-max_radius20240823-202738",
+            #     "[0.06263583 0.75824183]state-0.1epsilon-5000samples-DFS20240823-203240",
+            #     "[0.06263583 0.75824183]state-0.1epsilon-5000samples-BFS20240823-202755",
+            # ],
+            # "max_step": 30000,
+        }
+    }
     
+    env = "TunnelDiode"
+    dir_name = config[env]["dir_name"]
+    max_step = config[env]["max_step"]
     datadirs = [f"./epsilon-controllability/figs/{env}/{name}/count.txt" for name in dir_name]
-    labels = ["MECS", "BFS", "DFS"]
-    env = "MassSpring"
+    labels = ["MECS", "DFS", "BFS"]
     plotDOC(datadirs, labels, env, max_step)
